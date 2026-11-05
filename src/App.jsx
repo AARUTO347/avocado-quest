@@ -1,0 +1,682 @@
+import { useEffect, useRef, useState } from 'react';
+import { createScene } from './scene.js';
+import { stageFor, STAGES } from './sprites.js';
+import { SFX, Lofi, setSoundEnabled, setVolume, unlockAudio } from './audio.js';
+import { loadState, saveState } from './store.js';
+import { THEMES, themeById } from './themes.js';
+import {
+  createWorld, DECOR, ENEMY_TYPES, decorThumbnails, enemyThumbnails,
+  WEAPON_BASES, WEAPON_TIERS, WEAPONS, DISTRICTS, CONDITIONS, weaponThumbnails
+} from './world.js';
+import typewriterUrl from './assets/typewriter.png';
+import recordUrl from './assets/record.png';
+import logoUrl from './assets/logo.png';
+
+const VAR_KEYS = ['--grass', '--cream', '--wood', '--wood-dark', '--ink', '--leaf', '--blush', '--gold'];
+
+const fmt = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+const clampMin = (m, lo, hi) => Math.max(lo, Math.min(hi, m));
+
+const CATEGORIES = ['general', 'work', 'health', 'learning', 'chores', 'fun'];
+const PRIORITIES = ['low', 'normal', 'high'];
+const PRI_W = { high: 0, normal: 1, low: 2 };
+const RECURRENCES = ['none', 'daily', 'weekly'];
+const BLANK_DRAFT = { text: '', category: 'general', priority: 'normal', dueAt: '', recurrence: 'none', description: '' };
+const normWorld = w => ({
+  decor: Array.isArray(w && w.decor) ? w.decor.slice(0, 80) : [],
+  bopped: Number(w && w.bopped) || 0,
+  weapon: typeof (w && w.weapon) === 'string' ? w.weapon : null,
+  map: { d: (w && w.map && w.map.d) || 'southgate', c: (w && w.map && w.map.c) || 'day' }
+});
+const normTask = t => ({
+  description: '', category: 'general', priority: 'normal', dueAt: null,
+  recurrence: 'none', estimatedMinutes: 0, createdAt: Date.now(), completedAt: null,
+  ...t, id: t.id, text: String(t.text || ''), xp: t.xp || 20, done: !!t.done, rewarded: !!t.rewarded
+});
+const localDate = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+export default function App() {
+  const [ready, setReady] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [stats, setStats] = useState({ xp: 0, level: 1, scrap: 0, completed: 0, streak: 0, lastDoneDate: null, focusSessions: 0 });
+  const [soundOn, setSoundOn] = useState(true);
+  const [remote, setRemote] = useState(false);
+  const [timer, setTimer] = useState({ mode: 'idle', left: 25 * 60, running: false, finished: false });
+  const [durations, setDurations] = useState({ work: 25, break: 5, long: 15 });
+  const [volume, setVolumeState] = useState(80);
+  const [clockAlarm, setClockAlarm] = useState({ time: '18:00', enabled: false });
+  const [theme, setTheme] = useState('meadow');
+  const [speech, setSpeech] = useState('');
+  const [banner, setBanner] = useState(null);
+  const [flash, setFlash] = useState(0);
+  const [taskView, setTaskView] = useState('active');
+  const [filterCat, setFilterCat] = useState('all');
+  const [filterPri, setFilterPri] = useState('all');
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState(BLANK_DRAFT);
+  const [world, setWorld] = useState(normWorld());
+  const [placing, setPlacing] = useState(null);
+  const [worldThumbs, setWorldThumbs] = useState({});
+  const [enemyThumbs, setEnemyThumbs] = useState({});
+  const [weaponThumbs, setWeaponThumbs] = useState({});
+  const [armoryBase, setArmoryBase] = useState('sword');
+
+  const canvasRef = useRef(null);
+  const inputRef = useRef(null);
+  const sceneRef = useRef(null);
+  const worldCanvasRef = useRef(null);
+  const worldRef = useRef(null);
+  const worldDataRef = useRef({ decor: [] });
+  const placingRef = useRef(null);
+  const scrapRef = useRef(0);
+  const moodRef = useRef({ happyUntil: 0, hopUntil: 0 });
+  const typeTimer = useRef(null);
+  const lastAlarmMin = useRef('');
+  const statsRef = useRef({ focusSessions: 0 });
+  const sceneState = useRef({ working: false, hop: false, timerText: fmt(25 * 60) });
+
+  statsRef.current = stats;
+  scrapRef.current = stats.scrap;
+  worldDataRef.current = world;
+  placingRef.current = placing;
+  sceneState.current.working = timer.running && timer.mode === 'work';
+  sceneState.current.hop = performance.now() < moodRef.current.hopUntil;
+  sceneState.current.timerText = timer.mode === 'idle' ? fmt(durations.work * 60) : fmt(timer.left);
+  const pendingSorted = tasks.filter(t => !t.done).sort((a, b) =>
+    (PRI_W[a.priority] - PRI_W[b.priority]) ||
+    String(a.dueAt || '9999').localeCompare(String(b.dueAt || '9999')) ||
+    a.createdAt - b.createdAt);
+  sceneState.current.missions = pendingSorted.slice(0, 3).map(t => t.text);
+  sceneState.current.speech = speech;
+  sceneState.current.bg = themeById(theme).bg;
+
+  useEffect(() => {
+    const t = themeById(theme);
+    if (t.vars) for (const [k, v] of Object.entries(t.vars)) document.body.style.setProperty(k, v);
+    else for (const k of VAR_KEYS) document.body.style.removeProperty(k);
+  }, [theme]);
+
+  function say(text) {
+    clearInterval(typeTimer.current);
+    let i = 0;
+    setSpeech('');
+    typeTimer.current = setInterval(() => {
+      i++;
+      setSpeech(text.slice(0, i));
+      if (text[i - 1] && text[i - 1] !== ' ') SFX.key();
+      if (i >= text.length) clearInterval(typeTimer.current);
+    }, 28);
+  }
+
+  function bumpStats(s, xp) {
+    const ns = { ...s, xp: s.xp + xp };
+    const prevStage = stageFor(s.level);
+    while (ns.xp >= ns.level * 50) { ns.xp -= ns.level * 50; ns.level += 1; }
+    if (stageFor(ns.level) !== prevStage) {
+      SFX.evolve();
+      setBanner({ text: 'EVOLVED INTO ' + stageFor(ns.level).name + '!' });
+      setFlash(f => f + 1);
+      setTimeout(() => setBanner(null), 3500);
+      sceneRef.current && sceneRef.current.burst(['#ffd75e', '#f7b6c8', '#7ec850', '#fff8e7'], 40);
+    } else if (ns.level !== s.level) {
+      SFX.levelup();
+      setBanner({ text: 'LEVEL ' + ns.level + ' REACHED!' });
+      setFlash(f => f + 1);
+      setTimeout(() => setBanner(null), 2000);
+    } else {
+      SFX.xp();
+    }
+    return ns;
+  }
+
+  useEffect(() => {
+    loadState().then(st => {
+      setTasks(st.tasks.map(normTask)); setStats(st.stats); setSoundOn(st.soundOn); setRemote(!!st.remote);
+      if (st.durations) setDurations(d => ({ ...d, ...st.durations }));
+      if (typeof st.volume === 'number') { setVolumeState(st.volume); setVolume(st.volume / 100); }
+      if (st.clockAlarm) setClockAlarm(c => ({ ...c, ...st.clockAlarm }));
+      if (st.theme) setTheme(st.theme);
+      if (st.world) setWorld(normWorld(st.world));
+      setSoundEnabled(st.soundOn);
+      setReady(true);
+      sceneRef.current = createScene(canvasRef.current, () => sceneState.current);
+      say('HELLO COMMANDER! I AM AVO! PLANT A MISSION AND LETS GROW!');
+    });
+    return () => sceneRef.current && sceneRef.current.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    saveState({ tasks, stats, soundOn, remote, durations, volume, clockAlarm, theme, world });
+  }, [tasks, stats, soundOn, ready, durations, volume, clockAlarm, theme, world]);
+
+  const pickTheme = id => {
+    if (id === theme) return;
+    SFX.click();
+    setTheme(id);
+    say(themeById(id).name + ' THEME EQUIPPED! LOOKING FRESH!');
+  };
+
+  const collectScrap = n => {
+    setStats(s => ({ ...s, scrap: s.scrap + (n || 1) }));
+    SFX.coin();
+  };
+
+  const hurtScrap = (dmg = 2) => {
+    setStats(s => ({ ...s, scrap: Math.max(0, s.scrap - dmg) }));
+    SFX.hurt();
+    say('OUCH! A VILLAGE BEAST STOLE ' + dmg + ' SCRAP! BOP IT BACK!');
+  };
+
+  const placeDecor = (id, x, y) => {
+    const item = DECOR.find(d => d.id === id);
+    if (!item) return;
+    if (statsRef.current.scrap < item.cost) {
+      SFX.error();
+      say('NOT ENOUGH SCRAP FOR ' + item.name + '... COLLECT MORE COINS IN THE VILLAGE!');
+      return;
+    }
+    setStats(s => ({ ...s, scrap: s.scrap - item.cost }));
+    setWorld(w => ({ ...w, decor: [...w.decor, { id, x, y }].slice(-80) }));
+    SFX.add();
+    say(item.name + ' PLACED! THE VILLAGE IS GROWING!');
+  };
+
+  const buyWeapon = w => {
+    if (world.weapon === w.id) return;
+    if (statsRef.current.scrap < w.cost) { SFX.error(); say('NOT ENOUGH SCRAP FOR ' + w.name + ' (' + w.cost + ')'); return; }
+    setStats(s => ({ ...s, scrap: s.scrap - w.cost }));
+    setWorld(x => ({ ...x, weapon: w.id }));
+    SFX.done();
+    say(w.name + ' EQUIPPED! ATTACK POWER +' + w.dmg + '!');
+  };
+
+  const pickMap = (d, c) => {
+    setWorld(w => ({ ...w, map: { d, c } }));
+    if (worldRef.current) worldRef.current.setMap(d, c);
+    SFX.click();
+    const dn = (DISTRICTS.find(x => x.id === d) || {}).name;
+    const cn = (CONDITIONS.find(x => x.id === c) || {}).name;
+    say('TRAVELING TO ' + dn + ' AT ' + cn + '.');
+  };
+
+  const togglePlacing = id => {
+    SFX.click();
+    const next = placing === id ? null : id;
+    setPlacing(next);
+    if (next) say('CLICK THE VILLAGE MAP TO PLACE ' + (DECOR.find(d => d.id === id) || {}).name + '.');
+    else say('PLACEMENT CANCELED.');
+  };
+
+  useEffect(() => {
+    decorThumbnails().then(setWorldThumbs).catch(() => {});
+    enemyThumbnails().then(setEnemyThumbs).catch(() => {});
+    weaponThumbnails().then(setWeaponThumbs).catch(() => {});
+    if (worldCanvasRef.current) {
+      worldRef.current = createWorld(worldCanvasRef.current, {
+        getDecor: () => worldDataRef.current.decor,
+        getPlacing: () => placingRef.current,
+        onCollect: collectScrap,
+        onPlace: placeDecor,
+        onDamage: hurtScrap,
+        onSwing: () => SFX.swing(),
+        onBop: () => setWorld(w => ({ ...w, bopped: (w.bopped || 0) + 1 })),
+        getBopped: () => worldDataRef.current.bopped || 0,
+        getMap: () => worldDataRef.current.map || { d: 'southgate', c: 'day' },
+        getWeaponDamage: () => { const w = WEAPONS.find(x => x.id === worldDataRef.current.weapon); return w ? w.dmg : 1; },
+        onWater: () => { SFX.error(); say('NO BUILDING ON WATER! PICK SOLID GROUND.'); }
+      });
+    }
+    const m = worldDataRef.current.map;
+    if (m) setTimeout(() => worldRef.current && worldRef.current.setMap(m.d, m.c), 60);
+    return () => { worldRef.current && worldRef.current.destroy(); worldRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    if (!timer.running && timer.mode === 'idle') {
+      setTimer(t => (t.left !== durations.work * 60 ? { ...t, left: durations.work * 60 } : t));
+    }
+  }, [durations.work, timer.running, timer.mode]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!clockAlarm.enabled) return;
+      const n = new Date();
+      const hm = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+      if (hm === clockAlarm.time && lastAlarmMin.current !== hm) {
+        lastAlarmMin.current = hm;
+        unlockAudio();
+        SFX.alarmClock(5);
+        setBanner({ text: 'ALARM! ' + hm });
+        setFlash(f => f + 1);
+        setTimeout(() => setBanner(null), 4000);
+        moodRef.current.happyUntil = performance.now() + 3000;
+        moodRef.current.hopUntil = performance.now() + 600;
+        sceneRef.current && sceneRef.current.burst(['#ffe066', '#f7b6c8', '#7ec850']);
+        say('ALARM! ALARM! IT IS ' + hm + '!');
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [clockAlarm.enabled, clockAlarm.time]);
+
+  useEffect(() => {
+    if (!timer.running) return;
+    const id = setInterval(() => {
+      setTimer(t => {
+        if (t.left <= 1) return { ...t, left: 0, running: false, finished: true };
+        if (t.left <= 6) SFX.tick();
+        return { ...t, left: t.left - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timer.running]);
+
+  useEffect(() => {
+    if (!timer.finished) return;
+    if (timer.mode === 'work') {
+      Lofi.stop(); SFX.alarmClock(4);
+      moodRef.current.happyUntil = performance.now() + 3000;
+      moodRef.current.hopUntil = performance.now() + 600;
+      sceneRef.current && sceneRef.current.burst(['#f7b6c8', '#ffe066', '#7ec850']);
+      const done = statsRef.current.focusSessions + 1;
+      const isLong = done % 4 === 0;
+      setStats(s => bumpStats({ ...s, focusSessions: s.focusSessions + 1, scrap: s.scrap + 10 }, 30));
+      if (isLong) {
+        say('FOCUS COMPLETE! +30XP! YOU EARNED A LONG ' + durations.long + ' MIN RECHARGE!');
+        setTimer({ mode: 'break', left: durations.long * 60, running: true, finished: false, long: true });
+      } else {
+        say('FOCUS COMPLETE! +30XP +10 SCRAP! RECHARGING NOW...');
+        setTimer({ mode: 'break', left: durations.break * 60, running: true, finished: false });
+      }
+    } else {
+      SFX.win();
+      say('BATTERY FULL! READY FOR THE NEXT SESSION!');
+      setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false });
+    }
+  }, [timer.finished]);
+
+  const addTask = () => {
+    const text = inputRef.current.value.trim();
+    if (!text) { SFX.error(); say('BZZT! EMPTY MISSION REJECTED!'); return; }
+    setTasks(ts => [...ts, normTask({ id: Date.now() + Math.random(), text, done: false, xp: 20 })]);
+    inputRef.current.value = '';
+    SFX.add();
+    say('NEW MISSION PLANTED! +20XP WHEN IT SPROUTS! PRESS THE PENCIL TO SET CATEGORY, PRIORITY, DEADLINE OR REPEAT!');
+  };
+
+  const toggleTask = id => {
+    const t = tasks.find(x => x.id === id);
+    if (!t || t.done) return;
+    const now = Date.now();
+    setTasks(ts => {
+      const doneList = ts.map(x => x.id === id ? { ...x, done: true, completedAt: now, rewarded: true } : x);
+      if (t.recurrence === 'daily' || t.recurrence === 'weekly') {
+        const step = t.recurrence === 'daily' ? 864e5 : 7 * 864e5;
+        const nextDue = t.dueAt ? new Date(new Date(t.dueAt).getTime() + step).toISOString().slice(0, 10) : null;
+        doneList.push(normTask({ ...t, id: now + Math.random(), done: false, completedAt: null, createdAt: now, dueAt: nextDue, rewarded: false }));
+      }
+      return doneList;
+    });
+    if (!t.rewarded) {
+      const today = new Date().toDateString();
+      const yest = new Date(Date.now() - 864e5).toDateString();
+      setStats(s => bumpStats({
+        ...s,
+        completed: s.completed + 1,
+        scrap: s.scrap + 5,
+        streak: s.lastDoneDate === today ? s.streak : (s.lastDoneDate === yest ? s.streak + 1 : 1),
+        lastDoneDate: today
+      }, t.xp));
+    }
+    SFX.done(); setTimeout(() => SFX.coin(), 300);
+    moodRef.current.happyUntil = performance.now() + 2200;
+    moodRef.current.hopUntil = performance.now() + 500;
+    sceneRef.current && sceneRef.current.burst(['#7ec850', '#dbe37a', '#f7b6c8']);
+    say(t.recurrence !== 'none'
+      ? 'RECURRING MISSION COMPLETE! THE NEXT ONE ALREADY SPROUTED IN THE GARDEN!'
+      : t.rewarded ? 'MISSION COMPLETE AGAIN! NO EXTRA XP THIS TIME, BUT STILL PROUD!'
+        : ['MISSION COMPLETE! EXCELLENT!', 'TARGET SPROUTED! HOORAY!', 'TASK DONE! SO PROUD OF US!', 'HARVEST TIME! +5 SCRAP!'][Math.floor(Math.random() * 4)]);
+  };
+
+  const reopenTask = id => {
+    setTasks(ts => ts.map(x => x.id === id ? { ...x, done: false, completedAt: null, rewarded: true } : x));
+    SFX.click();
+    say('MISSION REPLANTED! NO DOUBLE XP, BUT LETS DO THIS!');
+  };
+
+  const startEdit = t => {
+    setEditingId(t.id);
+    setDraft({ text: t.text, category: t.category, priority: t.priority, dueAt: t.dueAt || '', recurrence: t.recurrence, description: t.description || '' });
+  };
+
+  const saveEdit = id => {
+    const text = draft.text.trim();
+    if (!text) { SFX.error(); say('BZZT! A MISSION NEEDS A NAME!'); return; }
+    setTasks(ts => ts.map(x => x.id === id ? { ...x, text, category: draft.category, priority: draft.priority, dueAt: draft.dueAt || null, recurrence: draft.recurrence, description: draft.description } : x));
+    setEditingId(null);
+    setDraft(BLANK_DRAFT);
+    SFX.add();
+    say('MISSION LOG UPDATED!');
+  };
+
+  const cancelEdit = () => { setEditingId(null); setDraft(BLANK_DRAFT); };
+
+  const deleteTask = id => {
+    setTasks(ts => ts.filter(t => t.id !== id));
+    SFX.delete();
+    say('MISSION COMPOSTED... DELETED FROM LOG.');
+  };
+
+  const startPause = () => {
+    unlockAudio(); SFX.click();
+    if (timer.running) {
+      setTimer(t => ({ ...t, running: false }));
+      if (timer.mode === 'work') { Lofi.stop(); say('RECORD PAUSED... I WILL WAIT RIGHT HERE.'); }
+    } else {
+      let mode = timer.mode, left = timer.left;
+      if (mode === 'idle' || left <= 0) { mode = 'work'; left = durations.work * 60; }
+      setTimer({ mode, left, running: true, finished: false });
+      if (mode === 'work') {
+        Lofi.start();
+        moodRef.current.happyUntil = performance.now() + 1500;
+        say('TURNTABLE ONLINE! LO-FI AND FOCUS FOR ' + durations.work + ' MINUTES!');
+      } else {
+        say('BREAK TIME! STRETCH THOSE LEAVES!');
+      }
+    }
+  };
+
+  const resetTimer = () => {
+    SFX.click(); Lofi.stop();
+    setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false });
+    say('TURNTABLE STOPPED. STANDING BY.');
+  };
+
+  const setDur = (key, raw) => {
+    const fallback = { work: 25, break: 5, long: 15 }[key];
+    const max = key === 'work' ? 180 : 90;
+    const m = clampMin(parseInt(raw, 10) || fallback, 1, max);
+    setDurations(d => ({ ...d, [key]: m }));
+  };
+
+  const changeVolume = v => {
+    setVolumeState(v);
+    setVolume(v / 100);
+  };
+
+  const toggleClockAlarm = () => {
+    unlockAudio(); SFX.click();
+    setClockAlarm(c => {
+      const nv = { ...c, enabled: !c.enabled };
+      say(nv.enabled ? 'CLOCK ARMED FOR ' + nv.time + '! I WILL RING LOUD!' : 'CLOCK ALARM DISARMED.');
+      return nv;
+    });
+  };
+
+  const toggleSound = () => {
+    const nv = !soundOn;
+    setSoundOn(nv); setSoundEnabled(nv);
+    if (!nv) Lofi.stop();
+    else { unlockAudio(); SFX.boot(); if (timer.running && timer.mode === 'work') Lofi.start(); }
+  };
+
+  const stage = stageFor(stats.level);
+  const pending = tasks.filter(t => !t.done).length;
+  const doneSorted = tasks.filter(t => t.done).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  const todayStr = localDate();
+  const visibleTasks = (taskView === 'active' ? pendingSorted : doneSorted)
+    .filter(t => filterCat === 'all' || t.category === filterCat)
+    .filter(t => filterPri === 'all' || t.priority === filterPri);
+
+  return (
+    <div className="app">
+      <header>
+        <img className="logo" src={logoUrl} alt="Avocado Quest logo" />
+        <h1>AVOCADO<span> QUEST</span></h1>
+        <div className="theme-dots" role="group" aria-label="Color theme">
+          {THEMES.map(t => (
+            <button
+              key={t.id}
+              className={'theme-dot' + (theme === t.id ? ' active' : '')}
+              style={{ background: 'linear-gradient(135deg, ' + t.swatch[0] + ' 0 34%, ' + t.swatch[1] + ' 34% 67%, ' + t.swatch[2] + ' 67% 100%)' }}
+              onClick={() => pickTheme(t.id)}
+              title={t.name}
+              aria-label={t.name + ' theme'}
+              aria-pressed={theme === t.id}
+            />
+          ))}
+        </div>
+        <button className="wood" onClick={toggleSound}>SOUND: {soundOn ? 'ON' : 'OFF'}</button>
+      </header>
+
+      <div className="scene-wrap">
+        <canvas ref={canvasRef} width={480} height={260} />
+        <div className="hud">
+          <div>
+            <div className="bot-name">AVO-01</div>
+            <div className="stage-name">STAGE {STAGES.indexOf(stage) + 1} // {stage.name}</div>
+          </div>
+          <div className="save-tag">{remote ? 'CLOUD SAVE' : 'LOCAL SAVE'}</div>
+        </div>
+        {flash > 0 && <div className="flash" key={flash} />}
+        {banner && <div className="banner"><h3>{banner.text}</h3></div>}
+      </div>
+
+      <div className="speech">
+        <img className="tw" src={typewriterUrl} alt="" />
+        <div className="speech-text">&#9656; {speech}<span className="cursor">&#9608;</span></div>
+      </div>
+
+      <main>
+        <section className="col">
+          <div className="panel center">
+            <h2><img className="h2-icon" src={recordUrl} alt="" /> FOCUS TURNTABLE</h2>
+            <div className={'mode ' + timer.mode}>
+              {timer.mode === 'work' ? '▶ SPINNING // WORK' : timer.mode === 'break' ? (timer.long ? '❚❚ LONG RECHARGE' : '❚❚ RECHARGE') : 'IDLE // ' + pending + ' MISSIONS'}
+            </div>
+            <div className="timer-display">{fmt(timer.left)}</div>
+            <div className="btn-row">
+              <button className="wood primary" onClick={startPause}>{timer.running ? 'PAUSE' : timer.mode === 'idle' ? 'START' : 'RESUME'}</button>
+              <button className="wood" onClick={resetTimer}>RESET</button>
+            </div>
+            <div className="dur-grid">
+              <label>WORK MIN<input type="number" min="1" max="180" value={durations.work} onChange={e => setDur('work', e.target.value)} /></label>
+              <label>BREAK MIN<input type="number" min="1" max="90" value={durations.break} onChange={e => setDur('break', e.target.value)} /></label>
+              <label>LONG MIN<input type="number" min="1" max="90" value={durations.long} onChange={e => setDur('long', e.target.value)} /></label>
+            </div>
+            <div className="dur-hint">TYPE MINUTES THEN HIT START // LONG BREAK AUTO-STARTS AFTER EVERY 4TH FOCUS SESSION</div>
+          </div>
+
+          <div className="panel">
+            <h2>&#9200; ALARM &amp; SOUND</h2>
+            <div className="alarm-row">
+              <span>CLOCK ALARM</span>
+              <input type="time" value={clockAlarm.time} onChange={e => { setClockAlarm(c => ({ ...c, time: e.target.value })); lastAlarmMin.current = ''; }} />
+              <button className={'wood' + (clockAlarm.enabled ? ' primary' : '')} onClick={toggleClockAlarm}>{clockAlarm.enabled ? 'ARMED' : 'OFF'}</button>
+            </div>
+            <div className="vol-row">
+              <span>VOLUME</span>
+              <input type="range" min="0" max="100" value={volume} onChange={e => changeVolume(+e.target.value)} />
+              <b>{volume}%</b>
+            </div>
+            <div className="vol-hint">TIMER END RINGS A CLASSIC ALARM // CLOCK ALARM RINGS EVEN WHILE THE TURNTABLE IS IDLE</div>
+          </div>
+        </section>
+
+        <section className="col">
+          <div className="panel">
+            <h2>&#9632; GROWTH</h2>
+            <div className="stat-row"><span>LEVEL</span><b>{stats.level}</b></div>
+            <div className="bar"><div className="bar-fill" style={{ width: Math.min(100, stats.xp / (stats.level * 50) * 100) + '%' }} /></div>
+            <div className="stat-row"><span>XP</span><b>{stats.xp} / {stats.level * 50}</b></div>
+            <div className="mini-stats">
+              <div>DONE<b>{stats.completed}</b></div>
+              <div>STREAK<b>{stats.streak}</b></div>
+              <div>SCRAP<b>{stats.scrap}</b></div>
+              <div>FOCUS<b>{stats.focusSessions}</b></div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>&#9876; MISSION GARDEN</h2>
+            <div className="view-tabs">
+              <button className={'wood' + (taskView === 'active' ? ' primary' : '')} onClick={() => { setTaskView('active'); SFX.click(); }}>ACTIVE ({pending})</button>
+              <button className={'wood' + (taskView === 'done' ? ' primary' : '')} onClick={() => { setTaskView('done'); SFX.click(); }}>DONE ({doneSorted.length})</button>
+            </div>
+            <div className="filter-row">
+              <select value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="filter by category">
+                <option value="all">ALL CATEGORIES</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+              </select>
+              <select value={filterPri} onChange={e => setFilterPri(e.target.value)} aria-label="filter by priority">
+                <option value="all">ALL PRIORITIES</option>
+                {PRIORITIES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+              </select>
+            </div>
+            <div className="input-row">
+              <input ref={inputRef} maxLength={80} placeholder="PLANT A NEW MISSION..."
+                onKeyDown={e => e.key === 'Enter' && addTask()} />
+              <button className="wood primary" onClick={addTask}>PLANT</button>
+            </div>
+            <ul className="task-list">
+              {visibleTasks.map(t => editingId === t.id ? (
+                <li key={t.id} className="editing">
+                  <div className="task-edit">
+                    <input value={draft.text} maxLength={140} placeholder="MISSION NAME"
+                      onChange={e => setDraft(d => ({ ...d, text: e.target.value }))} />
+                    <input className="notes" value={draft.description} maxLength={200} placeholder="NOTES (OPTIONAL)"
+                      onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} />
+                    <div className="edit-grid">
+                      <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))} aria-label="category">
+                        {CATEGORIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+                      </select>
+                      <select value={draft.priority} onChange={e => setDraft(d => ({ ...d, priority: e.target.value }))} aria-label="priority">
+                        {PRIORITIES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+                      </select>
+                      <input type="date" value={draft.dueAt} onChange={e => setDraft(d => ({ ...d, dueAt: e.target.value }))} aria-label="deadline" />
+                      <select value={draft.recurrence} onChange={e => setDraft(d => ({ ...d, recurrence: e.target.value }))} aria-label="repeats">
+                        {RECURRENCES.map(r => <option key={r} value={r}>{r === 'none' ? 'ONCE' : r.toUpperCase()}</option>)}
+                      </select>
+                    </div>
+                    <div className="edit-actions">
+                      <button className="wood primary" onClick={() => saveEdit(t.id)}>SAVE</button>
+                      <button className="wood" onClick={cancelEdit}>CANCEL</button>
+                    </div>
+                  </div>
+                </li>
+              ) : (
+                <li key={t.id} className={(t.done ? 'done' : '') + (t.dueAt && t.dueAt < todayStr && !t.done ? ' overdue' : '')}>
+                  <button className="check" onClick={() => toggleTask(t.id)} title="complete" disabled={t.done}>{t.done ? '✓' : ''}</button>
+                  <span className="text">
+                    {t.text}
+                    <span className="chips">
+                      <span className={'chip chip-' + t.category}>{t.category}</span>
+                      <span className={'chip chip-pri-' + t.priority}>{t.priority}</span>
+                      {t.recurrence !== 'none' && <span className="chip chip-rec">&#8635; {t.recurrence}</span>}
+                      {t.dueAt && <span className="chip chip-due">{t.dueAt.slice(5).replace('-', '/')}{t.dueAt < todayStr && !t.done ? ' !' : ''}</span>}
+                    </span>
+                  </span>
+                  <span className="xp">+{t.xp}XP</span>
+                  {!t.done && <button className="icon-btn" onClick={() => startEdit(t)} title="edit">&#9998;</button>}
+                  {t.done && <button className="icon-btn" onClick={() => reopenTask(t.id)} title="reopen">&#8635;</button>}
+                  <button className="del" onClick={() => deleteTask(t.id)} title="delete">&#10005;</button>
+                </li>
+              ))}
+            </ul>
+            {visibleTasks.length === 0 && <div className="empty">{tasks.length === 0 ? '-- THE GARDEN IS EMPTY --' : '-- NOTHING HERE WITH THESE FILTERS --'}<br />PLANT A MISSION TO FEED AVO-01</div>}
+          </div>
+        </section>
+      </main>
+
+      <section className="panel world-panel">
+        <h2>&#127794; AVO VILLAGE // RPG WORLD</h2>
+        <div className="map-bar">
+          <label>MAP
+            <select value={world.map.d} onChange={e => pickMap(e.target.value, world.map.c)} aria-label="choose district">
+              {DISTRICTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+          <label>SKY
+            <select value={world.map.c} onChange={e => pickMap(world.map.d, e.target.value)} aria-label="choose sky">
+              {CONDITIONS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          <span className="map-tag">50 MAPS // DANGER +{((DISTRICTS.find(d => d.id === world.map.d) || {}).danger || 0) + ((CONDITIONS.find(c => c.id === world.map.c) || {}).danger || 0)}</span>
+        </div>
+        <div className="world-wrap">
+          <canvas ref={worldCanvasRef} width={960} height={380} />
+          <div className="world-hud">SCRAP <b>{stats.scrap}</b> // BOPPED <b>{world.bopped || 0}</b> // WORLD LV <b>{1 + Math.floor((world.bopped || 0) / 8)}</b></div>
+        </div>
+        <div className="world-controls">
+          <div className="dpad" aria-label="movement controls">
+            <button onPointerDown={() => worldRef.current && worldRef.current.setDir('up', true)} onPointerUp={() => worldRef.current && worldRef.current.setDir('up', false)} onPointerLeave={() => worldRef.current && worldRef.current.setDir('up', false)} aria-label="walk up">&#9650;</button>
+            <div>
+              <button onPointerDown={() => worldRef.current && worldRef.current.setDir('left', true)} onPointerUp={() => worldRef.current && worldRef.current.setDir('left', false)} onPointerLeave={() => worldRef.current && worldRef.current.setDir('left', false)} aria-label="walk left">&#9664;</button>
+              <button onPointerDown={() => worldRef.current && worldRef.current.setDir('down', true)} onPointerUp={() => worldRef.current && worldRef.current.setDir('down', false)} onPointerLeave={() => worldRef.current && worldRef.current.setDir('down', false)} aria-label="walk down">&#9660;</button>
+              <button onPointerDown={() => worldRef.current && worldRef.current.setDir('right', true)} onPointerUp={() => worldRef.current && worldRef.current.setDir('right', false)} onPointerLeave={() => worldRef.current && worldRef.current.setDir('right', false)} aria-label="walk right">&#9654;</button>
+            </div>
+          </div>
+          <button className="bop-btn" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.attack(); }}>BOP!</button>
+        </div>
+        <div className="bestiary">
+          <span className="bestiary-label">BESTIARY</span>
+          {ENEMY_TYPES.map(t => (
+            <span key={t.name} className={'beast' + (world.bopped >= t.tier * 4 ? ' met' : '')} title={t.name + ' // TIER ' + t.tier + ' // +' + t.reward + ' SCRAP'}>
+              {enemyThumbs[t.name] ? <img src={enemyThumbs[t.name]} alt="" /> : <span className="beast-ph" />}
+              <span className="beast-name">{t.name}</span>
+              <span className="beast-tier">T{t.tier} +{t.reward}</span>
+            </span>
+          ))}
+        </div>
+        <section className="armory">
+          <div className="armory-head">
+            <span>&#9876; ARMORY</span>
+            <b>{(() => { const w = WEAPONS.find(x => x.id === world.weapon); return w ? w.name + ' // ATK +' + w.dmg : 'BARE HANDS // ATK +1'; })()}</b>
+            <span className="armory-count">120 WEAPONS</span>
+          </div>
+          <div className="weapon-bases">
+            {WEAPON_BASES.map(b => (
+              <button key={b.id} className={'wbase' + (armoryBase === b.id ? ' active' : '')} onClick={() => { SFX.click(); setArmoryBase(b.id); }} title={b.name}>
+                {weaponThumbs[b.id] ? <img src={weaponThumbs[b.id]} alt="" /> : <span className="wph" />}
+                <span className="wbase-name">{b.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="weapon-tiers">
+            {WEAPON_TIERS.map((t, i) => {
+              const w = WEAPONS.find(x => x.baseId === armoryBase && x.tier === i);
+              const owned = world.weapon === w.id;
+              return (
+                <button key={t} className={'wtier t' + i + (owned ? ' owned' : '') + (stats.scrap < w.cost && !owned ? ' poor' : '')}
+                  onClick={() => buyWeapon(w)} title={w.name + ' // ATK +' + w.dmg + ' // ' + w.cost + ' SCRAP'}>
+                  <b>{t}</b>
+                  <span>{owned ? 'EQUIPPED' : w.cost + ' SCRAP'}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        <div className="decor-shop">
+          {DECOR.map(d => (
+            <button
+              key={d.id}
+              className={'decor-btn' + (placing === d.id ? ' active' : '') + (stats.scrap < d.cost ? ' poor' : '')}
+              onClick={() => togglePlacing(d.id)}
+              title={d.name + ' — ' + d.cost + ' SCRAP'}
+            >
+              {worldThumbs[d.id] ? <img src={worldThumbs[d.id]} alt="" /> : <span className="decor-ph" />}
+              <span className="decor-name">{d.name}</span>
+              <span className="decor-cost">{d.cost} SCRAP</span>
+            </button>
+          ))}
+        </div>
+        <div className="world-hint">ARROWS / WASD WORK ANYWHERE ON THE PAGE // BEASTS + ANIMALS STAY ON LAND // AVO-01 FOLLOWS YOU // SPACE OR CLICK TO BOP BEASTS (+2 SCRAP) // COINS +1, GEMS +5 // PICK A DECORATION THEN CLICK TO PLACE IT</div>
+      </section>
+
+      <footer>MADE BY AARUTO (AARUTO_SOLANKI) // PRESS ENTER TO PLANT // LO-FI SPINS WHILE YOU FOCUS // WATER YOUR TASKS DAILY</footer>
+    </div>
+  );
+}

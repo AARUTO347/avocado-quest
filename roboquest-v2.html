@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBO-QUEST // Pixel Productivity</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  :root {
+    --bg: #0b1f14;
+    --panel: #143d24;
+    --panel-dark: #0d2818;
+    --border-light: #7ee08a;
+    --border-dark: #06130b;
+    --text: #eaffea;
+    --dim: #6fae7c;
+    --green: #3ddc5a;
+    --yellow: #ffe066;
+    --red: #ff6b6b;
+    --cyan: #73eff7;
+    --orange: #ff9f43;
+    --pink: #ff8fb1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background:
+      radial-gradient(ellipse at 50% -10%, #17421f 0%, transparent 55%),
+      #06130b;
+    font-family: 'Press Start 2P', monospace;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    image-rendering: pixelated;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 1px, transparent 1px, transparent 3px);
+    z-index: 999;
+  }
+
+  #game {
+    width: 100%;
+    max-width: 900px;
+    background: var(--bg);
+    border: 4px solid var(--border-light);
+    box-shadow: 0 0 0 4px var(--border-dark), 0 0 50px rgba(61,220,90,.18);
+  }
+
+  header {
+    background: var(--panel);
+    border-bottom: 4px solid var(--border-light);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  header h1 {
+    font-size: 14px;
+    color: var(--green);
+    text-shadow: 2px 2px 0 var(--border-dark);
+    letter-spacing: 1px;
+  }
+  header h1 span { color: var(--yellow); }
+
+  #sound-toggle { font-size: 10px; padding: 8px 10px; }
+
+  /* ---- world canvas ---- */
+  #world-wrap {
+    position: relative;
+    border-bottom: 4px solid var(--border-light);
+    background: #000;
+    line-height: 0;
+  }
+  #world {
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    display: block;
+  }
+  #world-hud {
+    position: absolute;
+    top: 10px; left: 12px; right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    line-height: 1.6;
+  }
+  #bot-name-tag {
+    font-size: 10px;
+    color: var(--yellow);
+    text-shadow: 2px 2px 0 #000;
+  }
+  #bot-stage-name { font-size: 8px; color: var(--text); text-shadow: 1px 1px 0 #000; margin-top: 4px; }
+  #clock-tag {
+    font-size: 9px;
+    color: var(--cyan);
+    text-shadow: 2px 2px 0 #000;
+    text-align: right;
+  }
+
+  #speech-wrap { position: relative; padding: 14px 16px 0; }
+  #speech {
+    font-size: 9px;
+    line-height: 2;
+    color: var(--text);
+    background: var(--panel-dark);
+    border: 3px solid var(--border-light);
+    box-shadow: inset 0 0 0 3px var(--border-dark);
+    padding: 12px 14px;
+    min-height: 56px;
+    text-align: left;
+    position: relative;
+    margin-top: 12px;
+  }
+  #speech::before {
+    content: "";
+    position: absolute;
+    top: -13px; left: 40px;
+    border: 6px solid transparent;
+    border-bottom-color: var(--border-light);
+  }
+  #cursor-blink { animation: blink 0.6s steps(1) infinite; color: var(--green); }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+  @media (max-width: 740px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel-dark);
+    border: 3px solid var(--border-light);
+    box-shadow: inset 0 0 0 3px var(--border-dark);
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    font-size: 10px;
+    color: var(--green);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 var(--border-dark);
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 9px;
+    color: var(--text);
+    background: var(--panel);
+    border: 3px solid var(--border-light);
+    box-shadow: 0 4px 0 var(--border-dark);
+    padding: 10px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  button:hover { background: #1d5632; }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--border-dark); }
+  button.primary { background: var(--green); border-color: #b6ffbe; color: #062010; }
+  button.primary:hover { background: #5ce877; }
+  button.danger { background: #7a2334; border-color: var(--red); }
+  button.danger:hover { background: #993247; }
+
+  .stat-row { display: flex; justify-content: space-between; font-size: 8px; margin-bottom: 6px; color: var(--dim); }
+  .stat-row b { color: var(--text); }
+
+  .bar {
+    height: 14px;
+    background: var(--border-dark);
+    border: 2px solid var(--border-light);
+    margin-bottom: 10px;
+  }
+  .bar-fill {
+    height: 100%;
+    background: repeating-linear-gradient(90deg, var(--green) 0 6px, #2ba644 6px 8px);
+    transition: width .4s steps(8);
+  }
+  #xp-fill { background: repeating-linear-gradient(90deg, var(--yellow) 0 6px, #d6b53e 6px 8px); }
+
+  .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 8px; }
+  .mini-stats div {
+    background: var(--bg);
+    border: 2px solid var(--panel);
+    padding: 8px 6px;
+    text-align: center;
+    color: var(--dim);
+  }
+  .mini-stats b { display: block; margin-top: 5px; color: var(--yellow); font-size: 10px; }
+
+  #timer-panel { text-align: center; }
+  #timer-display {
+    font-size: 26px;
+    color: var(--yellow);
+    text-shadow: 3px 3px 0 var(--border-dark);
+    margin: 8px 0;
+    letter-spacing: 3px;
+  }
+  #timer-mode { font-size: 8px; color: var(--dim); margin-bottom: 8px; }
+  #timer-mode.work { color: var(--orange); }
+  #timer-mode.brk { color: var(--green); }
+  #timer-bar { display: flex; gap: 3px; justify-content: center; margin: 10px 0 14px; }
+  .tblock { width: 10px; height: 14px; background: var(--border-dark); border: 2px solid var(--panel); }
+  .tblock.on { background: var(--orange); border-color: var(--yellow); }
+  #timer-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+  #mission-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  #mission-input {
+    flex: 1;
+    font-family: inherit;
+    font-size: 9px;
+    padding: 10px;
+    background: var(--border-dark);
+    color: var(--green);
+    caret-color: var(--green);
+    border: 3px solid var(--border-light);
+    outline: none;
+  }
+  #mission-input::placeholder { color: #2f6b3f; }
+
+  #task-list { list-style: none; }
+  #task-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg);
+    border: 2px solid var(--panel);
+    padding: 10px;
+    margin-bottom: 8px;
+    font-size: 9px;
+    line-height: 1.6;
+    animation: slideIn .2s steps(4);
+  }
+  @keyframes slideIn { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .task-check {
+    width: 20px; height: 20px; min-width: 20px;
+    border: 3px solid var(--border-light);
+    background: var(--border-dark);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--green);
+    padding: 0; box-shadow: none;
+  }
+  .task-check:hover { background: #14351f; }
+  .task-text { flex: 1; word-break: break-word; }
+  li.done .task-text { color: var(--dim); text-decoration: line-through; }
+  li.done { opacity: .6; }
+  .task-xp { font-size: 8px; color: var(--yellow); white-space: nowrap; }
+  .task-del {
+    font-size: 9px; color: var(--red);
+    background: none; border: none; box-shadow: none;
+    cursor: pointer; padding: 4px;
+  }
+  .task-del:hover { color: var(--orange); background: none; }
+
+  #empty-msg { font-size: 8px; color: #2f6b3f; text-align: center; padding: 20px 0; line-height: 2; }
+
+  footer {
+    border-top: 4px solid var(--panel);
+    padding: 10px 16px;
+    font-size: 7px;
+    color: #2f6b3f;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  #flash { position: fixed; inset: 0; background: #b6ffbe; opacity: 0; pointer-events: none; z-index: 998; }
+  #flash.go { animation: flash .5s steps(3); }
+  @keyframes flash { 0% {opacity:.6;} 100% {opacity:0;} }
+
+  #levelup-banner {
+    position: fixed; top: 40%; left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    background: var(--panel); border: 4px solid var(--yellow);
+    box-shadow: 0 0 0 4px var(--border-dark), 0 0 60px rgba(255,224,102,.4);
+    padding: 24px 32px; text-align: center; z-index: 1000;
+    transition: transform .15s steps(3);
+    max-width: 90vw;
+  }
+  #levelup-banner.show { transform: translate(-50%,-50%) scale(1); }
+  #levelup-banner h3 { color: var(--yellow); font-size: 16px; margin-bottom: 12px; text-shadow: 2px 2px 0 var(--border-dark); }
+  #levelup-banner p { color: var(--green); font-size: 9px; line-height: 2; }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <header>
+    <h1>ROBO<span>-</span>QUEST</h1>
+    <button id="sound-toggle">SOUND: ON</button>
+  </header>
+
+  <div id="world-wrap">
+    <canvas id="world" width="440" height="240"></canvas>
+    <div id="world-hud">
+      <div>
+        <div id="bot-name-tag">SLIMEY-01</div>
+        <div id="bot-stage-name">STAGE 1 // SLIMEY</div>
+      </div>
+      <div id="clock-tag"></div>
+    </div>
+  </div>
+
+  <div id="speech-wrap">
+    <div id="speech"><span id="speech-text"></span><span id="cursor-blink">&#9608;</span></div>
+  </div>
+
+  <main>
+    <div class="col">
+      <div class="panel">
+        <h2>&#9632; STATUS</h2>
+        <div class="stat-row"><span>LEVEL</span><b id="level-num">1</b></div>
+        <div class="bar"><div class="bar-fill" id="xp-fill" style="width:0%"></div></div>
+        <div class="stat-row"><span>XP</span><b><span id="xp-num">0</span> / <span id="xp-max">50</span></b></div>
+        <div class="mini-stats">
+          <div>DONE<b id="stat-done">0</b></div>
+          <div>STREAK<b id="stat-streak">0</b></div>
+          <div>SCRAP<b id="stat-scrap">0</b></div>
+          <div>FOCUS<b id="stat-focus">0</b></div>
+        </div>
+      </div>
+
+      <div class="panel" id="timer-panel">
+        <h2>&#9201; FOCUS REACTOR</h2>
+        <div id="timer-mode">IDLE</div>
+        <div id="timer-display">25:00</div>
+        <div id="timer-bar"></div>
+        <div id="timer-buttons">
+          <button class="primary" id="timer-start">START</button>
+          <button class="danger" id="timer-reset">RESET</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <h2>&#9876; MISSION LOG</h2>
+        <div id="mission-input-row">
+          <input id="mission-input" type="text" maxlength="80" placeholder="ENTER NEW MISSION...">
+          <button class="primary" id="add-btn">ADD</button>
+        </div>
+        <ul id="task-list"></ul>
+        <div id="empty-msg">-- NO ACTIVE MISSIONS --<br>ADD A TASK TO POWER UP SLIMEY-01</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>PRESS ENTER TO ADD MISSION // DATA SAVED LOCALLY // INSERT COIN...</footer>
+</div>
+
+<div id="flash"></div>
+<div id="levelup-banner"><h3>LEVEL UP!</h3><p id="levelup-text"></p></div>
+
+<script>
+'use strict';
+
+/* ================= STATE ================= */
+const DEFAULT = {
+  tasks: [], xp: 0, level: 1, scrap: 0,
+  completed: 0, streak: 0, lastDoneDate: null,
+  focusSessions: 0, soundOn: true
+};
+let S = load();
+function load() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('roboquest-save-v2'));
+    if (raw && typeof raw === 'object') return Object.assign({}, DEFAULT, raw);
+  } catch (e) {}
+  return Object.assign({}, DEFAULT);
+}
+function save() { localStorage.setItem('roboquest-save-v2', JSON.stringify(S)); }
+const xpForLevel = lv => lv * 50;
+
+/* ================= SOUND ================= */
+let AC = null;
+function audio() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type, vol, when = 0, glide) {
+  if (!S.soundOn) return;
+  const ac = audio();
+  const t0 = ac.currentTime + when;
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(freq, t0);
+  if (glide) o.frequency.linearRampToValueAtTime(glide, t0 + dur);
+  g.gain.setValueAtTime(vol || 0.05, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol, when = 0) {
+  if (!S.soundOn) return;
+  const ac = audio();
+  const t0 = ac.currentTime + when;
+  const buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const g = ac.createGain(); g.gain.value = vol;
+  src.connect(g); g.connect(ac.destination);
+  src.start(t0);
+}
+let lastKeyT = 0;
+const SFX = {
+  click:    () => tone(600, 0.04, 'square', 0.04),
+  key:      () => { const n = performance.now(); if (n - lastKeyT < 30) return; lastKeyT = n;
+                    tone(900 + Math.random() * 300, 0.02, 'square', 0.02); noise(0.015, 0.015); },
+  add:      () => { tone(523, 0.06, 'square', 0.05); tone(784, 0.09, 'square', 0.05, 0.06); },
+  done:     () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.1, 'square', 0.05, i * 0.07)); },
+  delete:   () => tone(300, 0.15, 'square', 0.05, 0, 100),
+  error:    () => { tone(150, 0.12, 'sawtooth', 0.06); tone(120, 0.18, 'sawtooth', 0.06, 0.12); },
+  coin:     () => { tone(988, 0.05, 'square', 0.05); tone(1319, 0.25, 'square', 0.05, 0.05); },
+  xp:       () => { tone(880, 0.06, 'triangle', 0.05); tone(1175, 0.1, 'triangle', 0.05, 0.06); },
+  levelup:  () => { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, 0.12, 'square', 0.06, i * 0.09)); },
+  evolve:   () => { [261, 392, 523, 659, 784, 1046, 1318, 1568].forEach((f, i) => tone(f, 0.15, 'triangle', 0.09, i * 0.1)); noise(0.4, 0.03, 0.75); },
+  hop:      () => tone(400, 0.08, 'square', 0.03, 0, 800),
+  land:     () => noise(0.05, 0.03),
+  step:     () => noise(0.02, 0.008),
+  alarm:    () => { for (let i = 0; i < 6; i++) tone(880, 0.12, 'square', 0.06, i * 0.2); },
+  tick:     () => tone(1200, 0.02, 'square', 0.015),
+  boot:     () => { tone(200, 0.25, 'sawtooth', 0.04, 0, 900); tone(900, 0.1, 'square', 0.04, 0.28); noise(0.1, 0.02, 0.28); },
+  night:    () => { [659, 523, 392].forEach((f, i) => tone(f, 0.3, 'triangle', 0.04, i * 0.25)); },
+  win:      () => { [784, 988, 1175, 1568, 1175, 1568].forEach((f, i) => tone(f, 0.14, 'square', 0.06, i * 0.1)); }
+};
+
+/* ================= SLIME-BOT SPRITES (14 wide x 12 tall) ================= */
+const PAL = {
+  '.': null,
+  'k': '#06130b', // outline
+  'G': '#3ddc5a', // body
+  'g': '#7ef292', // highlight
+  'd': '#1f7a33', // shading
+  'e': '#0d1f12', // eye pupil
+  'w': '#ffffff', // eye white
+  'p': '#ff8fb1', // blush
+  'm': '#94b0c2', // metal
+  'M': '#c7dcd2', // metal light
+  'y': '#ffe066', // gold
+  'c': '#73eff7', // cyan visor
+  'W': '#f4f4f4'  // wing white
+};
+
+const SLIME = [
+  '.....kkkk.....',
+  '...kkGGGGkk...',
+  '..kGGggGGGGk..',
+  '.kGggGGGGGGGk.',
+  '.kGGGGGGGGGGk.',
+  'kGGwwGGGGwwGGk',
+  'kGGweGGGGweGGk',
+  'kGpGGGkkGGGGpk',
+  'kGGGGkGGkGGGGk',
+  '.kGGGkkkkGGGk.',
+  '..kGGGGGGGGk..',
+  '...kkkkkkkk...'
+];
+
+const HELMET = [
+  '.....kmmk.....',
+  '...kkmmmmkk...',
+  '..kmmMMmmmmk..',
+  '.kMmmmmmmmmMk.',
+  '.kmmmmmmmmmmk.',
+  'kGGwwGGGGwwGGk',
+  'kGGweGGGGweGGk',
+  'kGpGGGkkGGGGpk',
+  'kGGGGkGGkGGGGk',
+  '.kGGGkkkkGGGk.',
+  '..kGGGGGGGGk..',
+  '...kkkkkkkk...'
+];
+
+const VISOR = [
+  '.....kmmk.....',
+  '...kkmmmmkk...',
+  '..kmmMMmmmmk..',
+  '.kMmmmmmmmmMk.',
+  '.kmmmmmmmmmmk.',
+  'kGGccccccccGGk',
+  'kGGceGGGGecGGk',
+  'kGpGGGkkGGGGpk',
+  'kGGGGkGGkGGGGk',
+  '.kGGGkkkkGGGk.',
+  '..kGGGGGGGGk..',
+  '...kkkkkkkk...'
+];
+
+const WINGS = [
+  '..W..kmmk..W..',
+  '.WW.kkmmkk.WW.',
+  '.WWWmMMmmkWWW.'.slice(0, 14),
+  '.WWkmMMmmmWWk.',
+  '.WkmmmmmmmmkW.',
+  'kGGccccccccGGk',
+  'kGGceGGGGecGGk',
+  'kGpGGGkkGGGGpk',
+  'kGGGGkGGkGGGGk',
+  '.kGGGkkkkGGGk.',
+  '..kGGGGGGGGk..',
+  '...kkkkkkkk...'
+];
+
+const KING = [
+  '..y.ykkkky.y..',
+  '..yyyyyyyyyy..',
+  '..ykyyyyyyky..',
+  '..kkkmmmmkkk..',
+  '.kmmmmmmmmmmk.',
+  'kGGccccccccGGk',
+  'kGGceGGGGecGGk',
+  'kGpGGGkkGGGGpk',
+  'kGGGGkGGkGGGGk',
+  '.kGGGkkkkGGGk.',
+  '..kGGGGGGGGk..',
+  '...kkkkkkkk...'
+];
+
+const STAGES = [
+  { sprite: SLIME,  name: 'SLIMEY',   minLv: 1 },
+  { sprite: HELMET, name: 'ARMORED',  minLv: 3 },
+  { sprite: VISOR,  name: 'VISOR-TECH', minLv: 5 },
+  { sprite: WINGS,  name: 'SKY-CMDR', minLv: 8 },
+  { sprite: KING,   name: 'KING SLIME', minLv: 10 }
+];
+function stageFor(level) {
+  let s = STAGES[0];
+  for (const st of STAGES) if (level >= st.minLv) s = st;
+  return s;
+}
+
+/* ================= OPEN WORLD CANVAS ================= */
+const cvs = document.getElementById('world');
+const ctx = cvs.getContext('2d');
+const W = cvs.width, H = cvs.height;
+const GROUND_Y = 186;
+
+let botX = W / 2, botDir = 1, botVX = 0.6;
+let hopV = 0, hopY = 0, hopCooldown = 120;
+let particles = [];
+let happyUntil = 0, working = false;
+const sadMode = () => S.tasks.filter(t => !t.done).length >= 4;
+
+// world objects (wrap around for infinite open-world feel)
+const trees = [];
+for (let i = 0; i < 10; i++) trees.push({ x: Math.random() * (W + 200), s: 0.7 + Math.random() * 0.6, layer: i % 2 });
+const hills = [];
+for (let i = 0; i < 6; i++) hills.push({ x: i * 130 + Math.random() * 60, w: 90 + Math.random() * 70 });
+const stars = [];
+for (let i = 0; i < 40; i++) stars.push({ x: Math.random() * W, y: Math.random() * (GROUND_Y - 60), tw: Math.random() * Math.PI * 2 });
+const clouds = [];
+for (let i = 0; i < 4; i++) clouds.push({ x: Math.random() * (W + 100), y: 15 + Math.random() * 45, s: 1 + Math.floor(Math.random() * 2) });
+const fireflies = [];
+for (let i = 0; i < 12; i++) fireflies.push({ x: Math.random() * W, y: GROUND_Y - 10 - Math.random() * 60, ph: Math.random() * Math.PI * 2 });
+
+function timeOfDay() {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 8) return 'dawn';
+  if (h >= 8 && h < 17) return 'day';
+  if (h >= 17 && h < 20) return 'dusk';
+  return 'night';
+}
+const SKY = {
+  dawn:  { top: '#2b1e4e', bot: '#e8845c', hill: '#1d4a2a', hill2: '#14351f', tree: '#0d2818', ground: '#1f7a33', grass: '#2ba644' },
+  day:   { top: '#3a7bd5', bot: '#8fd6e8', hill: '#2d6b3f', hill2: '#1f5230', tree: '#143d24', ground: '#3ddc5a', grass: '#7ef292' },
+  dusk:  { top: '#1a1c3c', bot: '#c9536b', hill: '#1a3d26', hill2: '#122c1c', tree: '#0a1f13', ground: '#1f7a33', grass: '#2ba644' },
+  night: { top: '#050510', bot: '#101b3d', hill: '#0c2415', hill2: '#081a0f', tree: '#050f09', ground: '#14501f', grass: '#1f7a33' }
+};
+
+function px(x, y, s, color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), s, s); }
+
+function drawSprite(rows, dx, dy, p) {
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    for (let c = 0; c < row.length; c++) {
+      const col = PAL[row[c]];
+      if (!col) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(dx + c * p), Math.round(dy + r * p), p, p);
+    }
+  }
+}
+
+function drawTree(x, baseY, sc, col) {
+  const s = 4 * sc;
+  // trunk
+  ctx.fillStyle = '#3b2a1a';
+  ctx.fillRect(x - s / 2, baseY - s * 3, s, s * 3);
+  // foliage blobs
+  ctx.fillStyle = col;
+  ctx.fillRect(x - s * 2.5, baseY - s * 6, s * 5, s * 3);
+  ctx.fillRect(x - s * 1.5, baseY - s * 8, s * 3, s * 2);
+  ctx.fillRect(x - s * 3, baseY - s * 5, s * 6, s);
+}
+
+function burst(colors, n) {
+  for (let i = 0; i < (n || 24); i++) {
+    particles.push({
+      x: botX + 14, y: GROUND_Y - 14 + hopY,
+      vx: (Math.random() - 0.5) * 7, vy: -Math.random() * 6 - 1,
+      life: 28 + Math.random() * 20, s: 3 + Math.floor(Math.random() * 3) * 2,
+      c1: colors[i % colors.length], c2: '#ffffff'
+    });
+  }
+}
+
+let prevNight = false;
+function render() {
+  const t = performance.now();
+  const tod = timeOfDay();
+  const P = SKY[tod];
+  const night = tod === 'night';
+
+  // greet night once
+  if (night && !prevNight) { prevNight = true; }
+  if (!night) prevNight = false;
+
+  // sky gradient (stepped, retro)
+  const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  grad.addColorStop(0, P.top);
+  grad.addColorStop(1, P.bot);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // stars (night/dusk)
+  if (night || tod === 'dusk') {
+    for (const st of stars) {
+      const a = 0.4 + 0.6 * Math.abs(Math.sin(t / 700 + st.tw));
+      ctx.globalAlpha = night ? a : a * 0.4;
+      px(st.x, st.y, 2, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // sun or moon
+  if (night) {
+    ctx.fillStyle = '#e8e8d8';
+    ctx.fillRect(W - 70, 30, 24, 24);
+    ctx.fillRect(W - 74, 34, 4, 16);
+    ctx.fillRect(W - 42, 34, 4, 16);
+    ctx.fillStyle = P.top;
+    ctx.fillRect(W - 62, 34, 8, 8); // crater bite
+  } else {
+    const sy = tod === 'day' ? 24 : 44;
+    ctx.fillStyle = tod === 'day' ? '#ffe066' : '#ff9f43';
+    ctx.fillRect(40, sy, 20, 20);
+    ctx.fillRect(36, sy + 4, 4, 12);
+    ctx.fillRect(60, sy + 4, 4, 12);
+    ctx.fillRect(44, sy - 4, 12, 4);
+    ctx.fillRect(44, sy + 20, 12, 4);
+  }
+
+  // clouds (day-ish, drift)
+  if (!night) {
+    ctx.fillStyle = tod === 'day' ? 'rgba(255,255,255,.8)' : 'rgba(255,220,200,.5)';
+    for (const cl of clouds) {
+      cl.x += 0.05;
+      if (cl.x > W + 60) cl.x = -80;
+      const s = 4 * cl.s;
+      ctx.fillRect(cl.x, cl.y, s * 8, s * 2);
+      ctx.fillRect(cl.x + s * 2, cl.y - s, s * 4, s);
+    }
+  }
+
+  // far hills (slow parallax)
+  ctx.fillStyle = P.hill2;
+  for (const h of hills) {
+    const hx = ((h.x - t * 0.004) % (W + 200) + W + 200) % (W + 200) - 100;
+    ctx.beginPath();
+    ctx.arc(hx, GROUND_Y + 30, h.w / 1.4, Math.PI, 0);
+    ctx.fill();
+  }
+  // near hills
+  ctx.fillStyle = P.hill;
+  for (const h of hills) {
+    const hx = ((h.x + 60 - t * 0.008) % (W + 240) + W + 240) % (W + 240) - 120;
+    ctx.beginPath();
+    ctx.arc(hx, GROUND_Y + 40, h.w / 2, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // ground
+  ctx.fillStyle = P.ground;
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  ctx.fillStyle = P.grass;
+  const scroll = Math.floor(t * 0.02) % 16;
+  for (let gx = -scroll; gx < W; gx += 16) ctx.fillRect(gx, GROUND_Y, 8, 3);
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.fillRect(0, GROUND_Y + 18, W, H - GROUND_Y - 18);
+
+  // trees (two parallax layers)
+  for (const tr of trees) {
+    const speed = tr.layer === 0 ? 0.008 : 0.02;
+    tr.x -= speed * 16;
+    if (tr.x < -30) tr.x = W + 30 + Math.random() * 60;
+    drawTree(tr.x, GROUND_Y + (tr.layer === 0 ? -6 : 4), tr.s * (tr.layer === 0 ? 0.8 : 1), tr.layer === 0 ? P.hill : P.tree);
+  }
+
+  // fireflies at night
+  if (night) {
+    for (const f of fireflies) {
+      f.ph += 0.03;
+      const fx = f.x + Math.sin(f.ph) * 14;
+      const fy = f.y + Math.cos(f.ph * 0.7) * 8;
+      ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(f.ph * 2));
+      px(fx, fy, 2, '#ffe066');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---- the bot ---- */
+  // walking logic
+  const spd = working ? 0.35 : (sadMode() ? 0.25 : 0.7);
+  botX += botDir * spd;
+  if (botX < 20) { botX = 20; botDir = 1; }
+  if (botX > W - 56) { botX = W - 56; botDir = -1; }
+  // random direction flips
+  if (Math.random() < 0.003) botDir *= -1;
+  // footsteps
+  if (Math.floor(t / 300) !== Math.floor((t - 16) / 300)) SFX.step();
+
+  // hopping
+  hopCooldown--;
+  if (hopCooldown <= 0 && hopY === 0 && !sadMode()) {
+    if (Math.random() < 0.02) { hopV = -4.5; SFX.hop(); hopCooldown = 90; }
+  }
+  if (hopV !== 0 || hopY !== 0) {
+    hopY += hopV; hopV += 0.35;
+    if (hopY >= 0) { hopY = 0; hopV = 0; SFX.land(); }
+  }
+
+  // squash & stretch waddle
+  const wob = sadMode() ? 0 : Math.sin(t / 150) * 1.5;
+  const stage = stageFor(S.level);
+  const P2 = 2; // sprite pixel size => 28x24 sprite
+  const bx = botX, by = GROUND_Y - 24 + hopY + (sadMode() ? 2 : 0);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.fillRect(bx + 2, GROUND_Y - 2, 24, 4);
+
+  ctx.save();
+  ctx.translate(bx + 14, by + 24);
+  ctx.scale(1 + wob * 0.01, 1 - wob * 0.01);
+  if (botDir < 0) ctx.scale(-1, 1);
+  drawSprite(stage.sprite, -14, -24 + Math.round(sadMode() ? 2 : 0), P2);
+  ctx.restore();
+
+  // happy ^^ eyes overlay
+  const eyeY = by + 5 * P2;
+  if (t < happyUntil) {
+    ctx.fillStyle = PAL.e;
+    const ex = botX;
+    px(ex + 3 * P2, eyeY, P2, PAL.e); px(ex + 3 * P2, eyeY - P2, P2, PAL.e);
+    px(ex + 4 * P2, eyeY - 2 * P2, P2, PAL.e);
+    px(ex + 9 * P2, eyeY, P2, PAL.e); px(ex + 9 * P2, eyeY - P2, P2, PAL.e);
+    px(ex + 10 * P2, eyeY - 2 * P2, P2, PAL.e);
+  } else if (Math.floor(t / 100) % 34 < 2) { // blink
+    px(botX + 3 * P2, eyeY + P2, P2, PAL.G);
+    px(botX + 9 * P2, eyeY + P2, P2, PAL.G);
+  }
+
+  // working gear
+  if (working) {
+    const gy = by - 14 + Math.round(Math.sin(t / 200) * 2) * 2;
+    const gx = botX + 10 + Math.round(Math.cos(t / 300) * 6);
+    px(gx, gy, 6, '#ffe066'); px(gx + 2, gy + 2, 2, '#ff9f43');
+    px(gx - 2, gy + 2, 2, '#ffe066'); px(gx + 6, gy + 2, 2, '#ffe066');
+  }
+
+  // zzz when sad
+  if (sadMode() && hopY === 0 && Math.floor(t / 800) % 2 === 0) {
+    ctx.fillStyle = '#94b0c2';
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.fillText('z', botX + 30, by - 6);
+    ctx.fillText('Z', botX + 36, by - 14);
+  }
+
+  // particles
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
+    ctx.fillStyle = p.life % 6 < 3 ? p.c1 : p.c2;
+    ctx.fillRect(p.x, p.y, p.s, p.s);
+  }
+
+  // clock HUD
+  const d = new Date();
+  document.getElementById('clock-tag').textContent =
+    tod.toUpperCase() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+
+  requestAnimationFrame(render);
+}
+
+function botJump() { hopV = -7; }
+function botHappy(ms) { happyUntil = performance.now() + (ms || 1500); }
+
+/* ================= TYPEWRITER SPEECH ================= */
+const speechTextEl = document.getElementById('speech-text');
+let typeQueue = null;
+function say(text, ms) {
+  clearInterval(typeQueue);
+  let i = 0;
+  speechTextEl.textContent = '';
+  typeQueue = setInterval(() => {
+    if (i < text.length) {
+      speechTextEl.textContent += text[i++];
+      if (text[i - 1] !== ' ') SFX.key();
+    } else {
+      clearInterval(typeQueue);
+      typeQueue = null;
+      if (ms) setTimeout(updateMood, ms);
+    }
+  }, 28);
+}
+const IDLE_HAPPY = [
+  'ALL SYSTEMS NOMINAL! BEEP!', 'READY FOR ACTION, COMMANDER!',
+  'I RUN ON TASKS AND DEW!', '*HAPPY SLIME NOISES*',
+  'PRODUCTIVITY IS MY FUEL!', 'AFFIRMATIVE! LETS GROW!',
+  'THE FOREST BELIEVES IN YOU!', 'BOUNCING AT 100% EFFICIENCY!'
+];
+const IDLE_SAD = [
+  'BZZT... TOO MANY PENDING MISSIONS...', 'MY GEL DRAINS WITHOUT TASKS...',
+  'PLEASE COMPLETE A MISSION...', '*SAD SQUELCH*',
+  'IDLE MODE... SINKING INTO MUD...'
+];
+function updateMood() {
+  if (working) return;
+  if (tLastHappy && performance.now() - tLastHappy < 3000) return;
+  const pool = sadMode() ? IDLE_SAD : IDLE_HAPPY;
+  say(pool[Math.floor(Math.random() * pool.length)]);
+}
+let tLastHappy = 0;
+function celebrate(text) {
+  tLastHappy = performance.now();
+  say(text);
+}
+
+/* ================= TASKS ================= */
+const listEl = document.getElementById('task-list');
+const emptyEl = document.getElementById('empty-msg');
+const inputEl = document.getElementById('mission-input');
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderTasks() {
+  listEl.innerHTML = '';
+  const active = S.tasks.filter(t => !t.done);
+  const done = S.tasks.filter(t => t.done);
+  for (const t of active.concat(done)) {
+    const li = document.createElement('li');
+    if (t.done) li.className = 'done';
+    li.innerHTML =
+      '<button class="task-check" data-act="toggle" data-id="' + t.id + '" title="complete">' + (t.done ? '&#10003;' : '') + '</button>' +
+      '<span class="task-text">' + esc(t.text) + '</span>' +
+      '<span class="task-xp">+' + t.xp + 'XP</span>' +
+      '<button class="task-del" data-act="del" data-id="' + t.id + '" title="delete">&#10005;</button>';
+    listEl.appendChild(li);
+  }
+  emptyEl.style.display = S.tasks.length ? 'none' : 'block';
+}
+
+function addTask() {
+  const text = inputEl.value.trim();
+  if (!text) { SFX.error(); say('BZZT! EMPTY MISSION REJECTED!'); return; }
+  S.tasks.push({ id: Date.now() + Math.random(), text, done: false, xp: 20 });
+  inputEl.value = '';
+  SFX.add();
+  say('NEW MISSION LOGGED! +20XP ON COMPLETION!');
+  save(); renderTasks();
+}
+
+function yesterday() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return d.toDateString();
+}
+
+function toggleTask(id) {
+  const t = S.tasks.find(x => x.id == id);
+  if (!t || t.done) return;
+  t.done = true;
+  S.completed++;
+  const today = new Date().toDateString();
+  if (S.lastDoneDate === today) { /* same day */ }
+  else if (S.lastDoneDate === yesterday()) S.streak++;
+  else S.streak = 1;
+  S.lastDoneDate = today;
+  S.scrap += 5;
+  SFX.done();
+  setTimeout(SFX.coin, 300);
+  botJump(); botHappy(2200);
+  burst(['#3ddc5a', '#7ef292', '#ffe066', '#ff8fb1'], 30);
+  gainXP(t.xp);
+  const cheers = ['MISSION COMPLETE! EXCELLENT!', 'TARGET NEUTRALIZED! BEEP!', 'TASK DONE! SO PROUD!', 'VICTORY! +5 SCRAP COLLECTED!'];
+  celebrate(cheers[Math.floor(Math.random() * cheers.length)]);
+  save(); renderTasks(); updateMood(); renderStatus();
+}
+
+function deleteTask(id) {
+  S.tasks = S.tasks.filter(x => x.id != id);
+  SFX.delete();
+  say('MISSION ABORTED... DELETED FROM LOG.');
+  save(); renderTasks(); updateMood();
+}
+
+listEl.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  SFX.click();
+  if (btn.dataset.act === 'toggle') toggleTask(btn.dataset.id);
+  else deleteTask(btn.dataset.id);
+});
+document.getElementById('add-btn').addEventListener('click', () => { SFX.click(); addTask(); });
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+inputEl.addEventListener('input', () => SFX.key());
+
+/* ================= XP / LEVEL ================= */
+function gainXP(amount) {
+  S.xp += amount;
+  SFX.xp();
+  const prevStage = stageFor(S.level);
+  while (S.xp >= xpForLevel(S.level)) {
+    S.xp -= xpForLevel(S.level);
+    S.level++;
+    levelUp(prevStage);
+  }
+  renderStatus();
+}
+
+function levelUp(prevStage) {
+  const newStage = stageFor(S.level);
+  const evolved = newStage !== prevStage;
+  const flash = document.getElementById('flash');
+  flash.classList.remove('go');
+  void flash.offsetWidth;
+  flash.classList.add('go');
+  const banner = document.getElementById('levelup-banner');
+  document.getElementById('levelup-text').textContent =
+    'LEVEL ' + S.level + (evolved ? ' // EVOLVED INTO ' + newStage.name + '!' : ' REACHED!');
+  banner.classList.add('show');
+  if (evolved) {
+    SFX.evolve();
+    burst(['#73eff7', '#ffe066', '#ffffff', '#7ef292', '#ff8fb1'], 40);
+    botJump(); botHappy(4000);
+    if (newStage.name === 'KING SLIME') setTimeout(SFX.win, 900);
+    celebrate('BZZT!! EVOLUTION!! NEW FORM: ' + newStage.name + '!!');
+  } else {
+    SFX.levelup();
+  }
+  setTimeout(() => banner.classList.remove('show'), evolved ? 3500 : 2000);
+  save(); renderStatus();
+}
+
+function renderStatus() {
+  document.getElementById('level-num').textContent = S.level;
+  document.getElementById('xp-num').textContent = S.xp;
+  document.getElementById('xp-max').textContent = xpForLevel(S.level);
+  document.getElementById('xp-fill').style.width = Math.min(100, (S.xp / xpForLevel(S.level)) * 100) + '%';
+  const st = stageFor(S.level);
+  document.getElementById('bot-stage-name').textContent = 'STAGE ' + (STAGES.indexOf(st) + 1) + ' // ' + st.name;
+  document.getElementById('stat-done').textContent = S.completed;
+  document.getElementById('stat-streak').textContent = S.streak;
+  document.getElementById('stat-scrap').textContent = S.scrap;
+  document.getElementById('stat-focus').textContent = S.focusSessions;
+}
+
+/* ================= FOCUS TIMER ================= */
+const WORK_SEC = 25 * 60, BREAK_SEC = 5 * 60;
+let timerMode = 'idle';
+let timeLeft = WORK_SEC;
+let timerInt = null;
+
+const tDisp = document.getElementById('timer-display');
+const tMode = document.getElementById('timer-mode');
+const tBar = document.getElementById('timer-bar');
+const tStart = document.getElementById('timer-start');
+for (let i = 0; i < 20; i++) {
+  const d = document.createElement('div');
+  d.className = 'tblock';
+  tBar.appendChild(d);
+}
+
+function fmt(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function renderTimer() {
+  tDisp.textContent = fmt(timeLeft);
+  const total = timerMode === 'break' ? BREAK_SEC : WORK_SEC;
+  const pct = timerMode === 'idle' ? 0 : 1 - timeLeft / total;
+  const on = Math.round(pct * 20);
+  [...tBar.children].forEach((b, i) => b.classList.toggle('on', i < on));
+  tMode.innerHTML = timerMode === 'work' ? '&#9654; WORK MODE' : timerMode === 'break' ? '&#9646;&#9646; RECHARGE MODE' : 'IDLE';
+  tMode.className = timerMode === 'work' ? 'work' : timerMode === 'break' ? 'brk' : '';
+  tStart.textContent = timerInt ? 'PAUSE' : timerMode === 'idle' ? 'START' : 'RESUME';
+}
+
+function startTimer() {
+  SFX.click();
+  if (timerInt) {
+    clearInterval(timerInt); timerInt = null;
+    if (timerMode === 'work') { working = false; say('REACTOR PAUSED... I WILL WAIT.'); }
+    renderTimer(); return;
+  }
+  if (timerMode === 'idle') {
+    timerMode = 'work'; timeLeft = WORK_SEC;
+    working = true;
+    botHappy(1500);
+    celebrate('FOCUS REACTOR ONLINE! 25 MINUTES! LETS GO!');
+  }
+  timerInt = setInterval(tick, 1000);
+  renderTimer();
+}
+
+function tick() {
+  timeLeft--;
+  if (timeLeft <= 5 && timeLeft > 0) SFX.tick();
+  if (timeLeft <= 0) {
+    clearInterval(timerInt); timerInt = null;
+    SFX.alarm();
+    if (timerMode === 'work') {
+      S.focusSessions++;
+      S.scrap += 10;
+      botJump(); botHappy(3000); working = false;
+      burst(['#ff9f43', '#ffe066', '#73eff7'], 30);
+      celebrate('FOCUS COMPLETE! +30XP +10 SCRAP! RECHARGING...');
+      timerMode = 'break'; timeLeft = BREAK_SEC;
+      gainXP(30);
+      save(); renderStatus();
+      timerInt = setInterval(tick, 1000);
+    } else {
+      SFX.win();
+      timerMode = 'idle'; timeLeft = WORK_SEC; working = false;
+      say('BATTERY FULL! READY FOR NEXT SESSION!');
+      save();
+    }
+  }
+  renderTimer();
+}
+
+function resetTimer() {
+  SFX.click();
+  clearInterval(timerInt); timerInt = null;
+  timerMode = 'idle'; timeLeft = WORK_SEC; working = false;
+  say('REACTOR RESET. STANDING BY.');
+  renderTimer();
+}
+
+tStart.addEventListener('click', startTimer);
+document.getElementById('timer-reset').addEventListener('click', resetTimer);
+
+/* ================= MISC ================= */
+const soundBtn = document.getElementById('sound-toggle');
+soundBtn.addEventListener('click', () => {
+  S.soundOn = !S.soundOn;
+  soundBtn.textContent = 'SOUND: ' + (S.soundOn ? 'ON' : 'OFF');
+  if (S.soundOn) SFX.boot();
+  save();
+});
+
+setInterval(updateMood, 25000);
+
+/* ================= BOOT ================= */
+soundBtn.textContent = 'SOUND: ' + (S.soundOn ? 'ON' : 'OFF');
+renderTasks();
+renderStatus();
+renderTimer();
+render();
+say('BOOTING... HELLO COMMANDER! I AM SLIMEY-01!');
+document.addEventListener('click', () => audio(), { once: true });
+setTimeout(() => { if (S.soundOn) SFX.boot(); }, 300);
+</script>
+</body>
+</html>

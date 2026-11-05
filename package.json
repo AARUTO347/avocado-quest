@@ -1,0 +1,22 @@
+{
+  "name": "avocado-quest",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "description": "Cozy pixel-garden productivity app: avocado companion, lo-fi turntable, focus timer, missions",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.11"
+  }
+}

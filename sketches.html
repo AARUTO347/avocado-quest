@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Bot Theme Sketches</title>
+<style>
+  body { background:#0b1f14; font-family:monospace; color:#eaffea; display:flex; flex-wrap:wrap; gap:16px; padding:16px; }
+  .card { background:#0d2818; border:3px solid #7ee08a; padding:12px; width:360px; }
+  h3 { font-size:14px; color:#3ddc5a; margin:0 0 4px; }
+  p  { font-size:11px; color:#6fae7c; margin:0 0 8px; }
+  canvas { image-rendering:pixelated; background:#101b3d; border:2px solid #143d24; }
+</style>
+</head>
+<body>
+<div class="card"><h3>1. SPROUT-BOT</h3><p>Seed > Sprout > Leafy > Blooming > Ancient Treant</p><canvas id="c0" width="336" height="144"></canvas></div>
+<div class="card"><h3>2. GAME BOY BOT</h3><p>Dot > Brick > Pocket > Color > Advance</p><canvas id="c1" width="336" height="144"></canvas></div>
+<div class="card"><h3>3. MUSHROOM-BOT</h3><p>Spore > Button Cap > Fly Agaric > Glowshroom > King Cap</p><canvas id="c2" width="336" height="144"></canvas></div>
+<div class="card"><h3>4. GHOST-BOT</h3><p>Flicker > Wisp > Phantom > Polter-chip > Reaper-IC</p><canvas id="c3" width="336" height="144"></canvas></div>
+<div class="card"><h3>5. LAVA-LAMP BOT</h3><p>Ember > Bubbling > Molten > Magma Core > Solar Heart</p><canvas id="c4" width="336" height="144"></canvas></div>
+<div class="card"><h3>6. ASTRO-SLIME</h3><p>Cadet > Pilot > Ranger > Captain > Galaxy King</p><canvas id="c5" width="336" height="144"></canvas></div>
+
+<script>
+const THEMES = [
+{ pal:{'.':null,'k':'#06130b','B':'#7ef292','h':'#b6ffbe','d':'#2ba644','e':'#0d1f12','p':'#ff8fb1','s':'#2ba644','l':'#3ddc5a','f':'#ff8fb1','w':'#ffffff'},
+  rows:[
+  '.....ll.......',
+  '.....sls......',
+  '.....ks.......',
+  '.....kkkk.....',
+  '...kkBBBBkk...',
+  '..kBhhBBBBBk..',
+  '.kBhhBBBBBBBk.',
+  '.kBBwwBBwwBBk.',
+  'kBBweBBBweBBBk',
+  'kBpBBBkkBBBpBk',
+  'kBBBBkBBkBBBBk',
+  '.kBBBkkkkBBBk.',
+  '..kBBBBBBBBk..',
+  '...kkkkkkkk...']},
+{ pal:{'.':null,'0':'#0f380f','1':'#306230','2':'#8bac0f','3':'#9bbc0e','e':'#0f380f'},
+  rows:[
+  '..............',
+  '.....0000.....',
+  '...00111100...',
+  '..0122222210..',
+  '.012333333210.',
+  '.012333333210.',
+  '.012ee33ee210.',
+  '.012ee33ee210.',
+  '.012333333210.',
+  '.012e3333e210.',
+  '.0123eeee3210.',
+  '..0123333210..',
+  '...01222210...',
+  '....000000....']},
+{ pal:{'.':null,'k':'#06130b','R':'#e63946','r':'#b3212e','W':'#fff4e0','w':'#d9cbb0','e':'#3a2a1a','p':'#ff8fb1'},
+  rows:[
+  '....kkkkkk....',
+  '..kkRRwwRRkk..',
+  '.kRwwRRRRwwRk.',
+  'kRRRRRwwRRRRRk',
+  'kRwwRRRRRRwwRk',
+  'kkkkkkkkkkkkk.',
+  '..kWWWWWWWWk..',
+  '.kWWWWWWWWWWk.',
+  '.kWweeWWWWeeWk'.slice(0,14),
+  'kWWWeeWWWWeeWk'.slice(0,14),
+  'kWpWWWkkWWWpWk'.slice(0,14),
+  '.kWWWWkkWWWWk.',
+  '..kWWWwwWWWk..',
+  '...kkkkkkkk...']},
+{ pal:{'.':null,'k':'#123','M':'#c7f9e5','m':'#8fd6c1','c':'#73eff7','e':'#12345a','p':'#ff8fb1'},
+  rows:[
+  '....kkkkkk....',
+  '..kkMMMMMMkk..',
+  '.kMmmMMMMMMmk.',
+  'kMMmmMMMMMMMk.',
+  'kMMMeeMMeeMMMk'.slice(0,14),
+  'kMMMpeMMepMMMk'.slice(0,14),
+  'kMMMMMkkMMMMMk'.slice(0,14),
+  'kMMMkMMkMMMMMk'.slice(0,14),
+  '.kMMkkMMkkMMk.',
+  '..kMkkMMkMMk..',
+  '...kMk.kMk....',
+  '....kc..kc....',
+  '.....c...c....',
+  '..............']},
+{ pal:{'.':null,'k':'#241007','G':'#c7dcd2','g':'#f4f4f4','O':'#ff9f43','o':'#e63946','Y':'#ffe066','e':'#241007','b':'#ffe066'},
+  rows:[
+  '....kggggk....',
+  '..kggGGGGggk..',
+  '.kgGOOOOOOGgk.',
+  'kgOObOOOObOOGk'.slice(0,14),
+  'kgOOOOOOOOOOGk'.slice(0,14),
+  'kgOOeeOOOeeOOG'.slice(0,14),
+  'kgOOeeOOOeeOOG'.slice(0,14),
+  'kgOOOOOOOOOOOk'.slice(0,14),
+  'kgOOOYbbYOOOOk'.slice(0,14),
+  'kgOOOYYYYOOOOk'.slice(0,14),
+  '.kgOOOOOOOOGk.',
+  '..kgOOOOOOGk..',
+  '..kgggGGggggk.'.slice(0,14),
+  '...kkkkkkkk...']},
+{ pal:{'.':null,'k':'#101b3d','g':'#ffffff','H':'#aeb8e8','h':'#d8deff','P':'#9d5cff','p':'#c9a0ff','e':'#101b3d','y':'#ffe066','w':'#ffffff'},
+  rows:[
+  '....kkkkkkk...',
+  '..kkhggghhkk..',
+  '.khgHHHHHghk..',
+  'kgHHPpPPPPHgk.',
+  'kgHPppPPPPPHgk'.slice(0,14),
+  'kgHPePPPPePHgk'.slice(0,14),
+  'kgHPePPPPePHgk'.slice(0,14),
+  'kgHPPPPkkPPHgk'.slice(0,14),
+  'kgHPPkPPkPPHgk'.slice(0,14),
+  '.kgHPPkkPPHgk.',
+  '.kgyHPPPPPHgk.'.slice(0,14),
+  '..kgHHPPHHgk..',
+  '...kkggggkk...',
+  '....kkkkkk....']}
+];
+
+const results = [];
+THEMES.forEach((th, ti) => {
+  const c = document.getElementById('c' + ti);
+  const x = c.getContext('2d');
+  // ground
+  x.fillStyle = '#1f7a33'; x.fillRect(0, 120, c.width, 24);
+  x.fillStyle = '#14501f'; x.fillRect(0, 132, c.width, 12);
+  for (let i = 0; i < 5; i++) {
+    const dx = 14 + i * 68;
+    // shadow
+    x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(dx + 4, 118, 48, 4);
+    const P = 4;
+    for (let r = 0; r < th.rows.length; r++) {
+      for (let cc = 0; cc < th.rows[r].length; cc++) {
+        const col = th.pal[th.rows[r][cc]];
+        if (!col) continue;
+        x.fillStyle = col;
+        x.fillRect(dx + cc * P, 64 + r * P, P, P);
+      }
+    }
+  }
+  results.push(c.toDataURL());
+});
+window.__sketchData = results;
+</script>
+</body>
+</html>
