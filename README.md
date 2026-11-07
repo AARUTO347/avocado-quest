@@ -7,7 +7,7 @@ RPG village with a hero, Avo companion, beasts, boss tiers, 120 weapons, and 50 
 
 ## Live
 
-https://avocado-quest-aaruto.netlify.app/
+https://avoquest-aaruto.netlify.app/
 
 ## Run locally
 
