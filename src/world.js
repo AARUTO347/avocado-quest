@@ -247,6 +247,8 @@ export function weaponThumbnails() {
       c.width = 64; c.height = 64;
       const x = c.getContext('2d');
       x.imageSmoothingEnabled = false;
+      x.fillStyle = '#f6ecd4';
+      x.fillRect(0, 0, 64, 64);
       const sc = Math.min(56 / crop.width, 56 / crop.height);
       x.drawImage(keyed, (64 - crop.width * sc) / 2, (64 - crop.height * sc) / 2, crop.width * sc, crop.height * sc);
       out[b.id] = c.toDataURL('image/png');
