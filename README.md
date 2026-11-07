@@ -5,6 +5,10 @@ RPG village with a hero, Avo companion, beasts, boss tiers, 120 weapons, and 50 
 
 **Made by AARUTO (AARUTO_SOLANKI).**
 
+## Live
+
+https://avocado-quest-aaruto.netlify.app/
+
 ## Run locally
 
 ```bash

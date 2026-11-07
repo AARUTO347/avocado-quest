@@ -9,9 +9,18 @@ const store = {
     await getStore('avoquest').setJSON(key, value);
   },
   async listPrefix(prefix) {
-    const pages = await getStore('avoquest').list({ prefix });
+    const store = getStore('avoquest');
     const out = [];
-    for await (const entry of pages) out.push(entry.key);
+    let cursor = null;
+    for (let page = 0; page < 50; page++) {
+      const res = await store.list({ prefix, ...(cursor ? { cursor } : {}) });
+      const blobs = (res && res.blobs) || [];
+      for (const b of blobs) out.push(b.key);
+      const p = res && res.pagination;
+      const next = typeof p === 'string' ? p : (p && p.next) || null;
+      if (!next || !blobs.length) break;
+      cursor = next;
+    }
     return out;
   }
 };

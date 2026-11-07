@@ -9,3 +9,7 @@ server.log
 .env
 .env.*
 .DS_Store
+
+# Local Netlify folder
+.netlify
+.netlify/
