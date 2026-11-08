@@ -10,6 +10,7 @@ import {
   createWorld, DECOR, ENEMY_TYPES, decorThumbnails, enemyThumbnails,
   WEAPON_BASES, WEAPON_TIERS, WEAPONS, DISTRICTS, CONDITIONS, WORLD_MAPS, weaponThumbnails
 } from './world.js';
+import { localQuests } from './aiFallback.js';
 import typewriterUrl from './assets/typewriter.png';
 import recordUrl from './assets/record.png';
 import logoUrl from './assets/logo.png';
@@ -468,8 +469,9 @@ export default function App() {
       SFX.done();
       say(j.source === 'groq' ? 'AI HARVESTED FRESH QUESTS! PLANT THEM!' : 'AI IS OFFLINE... HERE ARE STARTER QUESTS.');
     } catch {
-      SFX.error();
-      say('AI COULD NOT REACH THE GARDEN. TRY AGAIN LATER.');
+      setAiQuests(localQuests(aiGoal || 'a productive day', 5));
+      SFX.done();
+      say('NO AI SERVER HERE... HERE ARE STARTER QUESTS FROM AVO.');
     }
     setAiLoading(false);
   };
