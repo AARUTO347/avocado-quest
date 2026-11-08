@@ -373,9 +373,15 @@ export function decorThumbnails() {
 
 export function createWorld(canvas, opts) {
   const ctx = canvas.getContext('2d');
-  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage, onDeath, onRespawn } = opts;
+  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage, onDeath, onRespawn, onAbility, getLevel } = opts;
 
-  const player = { x: WORLD_W / 2, y: WORLD_H - 260, dir: 1, moving: false, hp: 100, maxHp: 100, lastHurt: -99999, deathUntil: 0 };
+  const player = {
+  x: WORLD_W / 2, y: WORLD_H - 260, dir: 1, moving: false,
+  hp: 100, maxHp: 100, lastHurt: -99999, deathUntil: 0,
+  stamina: 100, maxStamina: 100, lastStaminaUse: -99999,
+  jumpUntil: 0, jumpStart: 0, dashUntil: 0, dashX: 0, dashY: 0,
+  shieldUntil: 0, healReadyAt: 0
+};
   const avo = { x: player.x - 46, y: player.y + 30, dir: 1, hopUntil: 0 };
   const keys = {};
   const coins = [];
@@ -480,6 +486,41 @@ export function createWorld(canvas, opts) {
     return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable);
   }
 
+  function activate(name) {
+    const lv = getLevel ? getLevel() : 99;
+    if (name === 'jump' && lv >= 1 && t > player.jumpUntil && player.stamina >= 12) {
+      player.jumpStart = t;
+      player.jumpUntil = t + 460;
+      player.stamina -= 12; player.lastStaminaUse = t;
+      onAbility && onAbility('jump');
+      return true;
+    }
+    if (name === 'dash' && lv >= 2 && t > player.dashUntil && player.stamina >= 18) {
+      player.dashX = player.dir;
+      player.dashY = keys.arrowup || keys.w ? -1 : (keys.arrowdown || keys.s ? 1 : 0);
+      player.dashUntil = t + 220;
+      player.stamina -= 18; player.lastStaminaUse = t;
+      invulnUntil = Math.max(invulnUntil, t + 240);
+      onAbility && onAbility('dash');
+      return true;
+    }
+    if (name === 'shield' && lv >= 4 && t > player.shieldUntil && player.stamina >= 25) {
+      player.shieldUntil = t + 1600;
+      player.stamina -= 25; player.lastStaminaUse = t;
+      onAbility && onAbility('shield');
+      return true;
+    }
+    if (name === 'heal' && lv >= 6 && t > player.healReadyAt && player.stamina >= 40 && player.hp < player.maxHp) {
+      player.hp = Math.min(player.maxHp, player.hp + 35);
+      player.healReadyAt = t + 9000;
+      player.stamina -= 40; player.lastStaminaUse = t;
+      onAbility && onAbility('heal');
+      return true;
+    }
+    onAbility && onAbility('blocked');
+    return false;
+  }
+
   function attack() {
     if (t < attackCd) return;
     attackCd = t + 450;
@@ -511,6 +552,10 @@ export function createWorld(canvas, opts) {
   function onKey(e, down) {
     if (isTyping(e)) return;
     const k = e.key.toLowerCase();
+    if (['j', 'k', 'l', 'h'].includes(k)) {
+      if (down && !e.repeat) activate({ j: 'jump', k: 'dash', l: 'shield', h: 'heal' }[k]);
+      return;
+    }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(k)) {
       keys[k] = down;
       e.preventDefault();
@@ -775,7 +820,7 @@ export function createWorld(canvas, opts) {
       if (en.windupUntil && t >= en.windupUntil) {
         en.windupUntil = 0;
         const d2 = Math.hypot(en.x - player.x, en.y - player.y);
-        if (d2 < 60 && t > invulnUntil) {
+        if (d2 < 60 && t > invulnUntil && t > player.jumpUntil && t > player.shieldUntil) {
           invulnUntil = t + 1200;
           hurtUntil = t + 500;
           player.hp = Math.max(0, player.hp - (en.damage || 2) * 8);
@@ -837,10 +882,20 @@ export function createWorld(canvas, opts) {
     player.moving = !!(dx || dy);
     if (dx) player.dir = dx > 0 ? 1 : -1;
     if (t > player.deathUntil) {
-      const nx = clamp(player.x + dx * sp, 40, WORLD_W - 40);
-      const ny = clamp(player.y + dy * sp, 74, WORLD_H - 44);
-      if (dx && isLand(nx, player.y)) player.x = nx;
-      if (dy && isLand(player.x, ny)) player.y = ny;
+      if (t < player.dashUntil) {
+        const bx = clamp(player.x + player.dashX * 0.55 * dt, 40, WORLD_W - 40);
+        const by = clamp(player.y + player.dashY * 0.55 * dt, 74, WORLD_H - 44);
+        if (isLand(bx, player.y)) player.x = bx;
+        if (isLand(player.x, by)) player.y = by;
+      } else {
+        const nx = clamp(player.x + dx * sp, 40, WORLD_W - 40);
+        const ny = clamp(player.y + dy * sp, 74, WORLD_H - 44);
+        if (dx && isLand(nx, player.y)) player.x = nx;
+        if (dy && isLand(player.x, ny)) player.y = ny;
+      }
+    }
+    if (t - player.lastStaminaUse > 1000 && player.stamina < player.maxStamina) {
+      player.stamina = Math.min(player.maxStamina, player.stamina + 0.009 * dt * 2);
     }
     if (player.deathUntil && t > player.deathUntil) {
       player.deathUntil = 0;
@@ -960,6 +1015,13 @@ export function createWorld(canvas, opts) {
       }
     }
 
+    if (t < player.shieldUntil) {
+      ctx.strokeStyle = 'rgba(120,200,255,0.85)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(player.x - camX, player.y - camY - 34, 34, 0, 6.29);
+      ctx.stroke();
+    }
     if (player.hp < player.maxHp && t > player.deathUntil) {
       const bw = 38, bx = Math.round(player.x - camX - bw / 2), by = Math.round(player.y - camY - 140);
       ctx.fillStyle = '#3a1f14'; ctx.fillRect(bx - 1, by - 1, bw + 2, 6);
@@ -994,6 +1056,26 @@ export function createWorld(canvas, opts) {
       ctx.fillStyle = '#fff6d8';
       ctx.font = 'bold 6px monospace';
       ctx.fillText(Math.ceil(player.hp) + '/' + player.maxHp, mx + 3, hbY + 6);
+      const sbY = hbY + 12;
+      ctx.fillStyle = 'rgba(20,16,8,0.75)';
+      ctx.fillRect(mx - 2, sbY - 2, mw + 4, 9);
+      ctx.fillStyle = '#8a6b2a'; ctx.fillRect(mx, sbY, mw, 5);
+      ctx.fillStyle = '#ffe066'; ctx.fillRect(mx, sbY, mw * (player.stamina / player.maxStamina), 5);
+      const lv = getLevel ? getLevel() : 1;
+      const ab = [
+        ['J', lv >= 1 && t > player.jumpUntil],
+        ['K', lv >= 2 && t > player.dashUntil],
+        ['L', lv >= 4 && t > player.shieldUntil],
+        ['H', lv >= 6 && t > player.healReadyAt]
+      ];
+      ab.forEach(([k, ok], i) => {
+        const bx2 = mx + i * 17, by2 = sbY + 10;
+        ctx.fillStyle = ok ? 'rgba(126,200,80,0.9)' : 'rgba(90,70,40,0.9)';
+        ctx.fillRect(bx2, by2, 14, 9);
+        ctx.fillStyle = '#1a1208';
+        ctx.font = 'bold 6px monospace';
+        ctx.fillText(k, bx2 + 5, by2 + 7);
+      });
       ctx.globalAlpha = 1;
     }
 
@@ -1032,6 +1114,8 @@ export function createWorld(canvas, opts) {
     isLand: (x, y) => isLand(x, y),
     getHp: () => ({ hp: player.hp, max: player.maxHp }),
     getWorldMap: () => activeMap,
+    activate,
+    getStamina: () => player.stamina,
     landPoint: (min) => landPoint(min || 0, player.x, player.y),
     setMap,
     setDir(name, down) {

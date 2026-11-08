@@ -284,6 +284,14 @@ export default function App() {
         onPlace: placeDecor,
         onDamage: hurtScrap,
         onSwing: () => SFX.swing(),
+        getLevel: () => statsRef.current.level,
+        onAbility: name => {
+          if (name === 'jump') SFX.hop();
+          else if (name === 'dash') SFX.click();
+          else if (name === 'shield') SFX.xp();
+          else if (name === 'heal') SFX.done();
+          else SFX.error();
+        },
         onDeath: () => { setStats(s => ({ ...s, scrap: Math.max(0, s.scrap - 10) })); SFX.hurt(); say('AVO FAINTED! YOU LOST 10 SCRAP... WALK IT OFF AND TRY AGAIN.'); },
         onRespawn: () => { SFX.boot(); say('BACK ON YOUR FEET! FULL HEALTH AND READY.'); },
         onBop: () => setWorld(w => ({ ...w, bopped: (w.bopped || 0) + 1 })),
@@ -906,6 +914,12 @@ export default function App() {
               <button onPointerDown={() => worldRef.current && worldRef.current.setDir('right', true)} onPointerUp={() => worldRef.current && worldRef.current.setDir('right', false)} onPointerLeave={() => worldRef.current && worldRef.current.setDir('right', false)} aria-label="walk right">&#9654;</button>
             </div>
           </div>
+          <div className="ability-row">
+            <button className="ability" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.activate('jump'); }} title="Jump (J)">J<small>JUMP</small></button>
+            <button className="ability" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.activate('dash'); }} title="Dash (K) — level 2">K<small>DASH</small></button>
+            <button className="ability" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.activate('shield'); }} title="Shield (L) — level 4">L<small>SHIELD</small></button>
+            <button className="ability" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.activate('heal'); }} title="Heal (H) — level 6">H<small>HEAL</small></button>
+          </div>
           <button className="bop-btn" onClick={() => { unlockAudio(); worldRef.current && worldRef.current.attack(); }}>BOP!</button>
         </div>
         <div className="bestiary">
@@ -960,7 +974,7 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div className="world-hint">ARROWS / WASD WORK ANYWHERE ON THE PAGE // BEASTS + ANIMALS STAY ON LAND // AVO-01 FOLLOWS YOU // SPACE OR CLICK TO BOP BEASTS (+2 SCRAP) // COINS +1, GEMS +5 // PICK A DECORATION THEN CLICK TO PLACE IT</div>
+        <div className="world-hint">ARROWS / WASD WALK // J JUMP // K DASH (LV2) // L SHIELD (LV4) // H HEAL (LV6) // SPACE BOP // AVO-01 FOLLOWS YOU // SPACE OR CLICK TO BOP BEASTS (+2 SCRAP) // COINS +1, GEMS +5 // PICK A DECORATION THEN CLICK TO PLACE IT</div>
       </section>
 
       <footer>MADE BY AARUTO (AARUTO_SOLANKI) // PRESS ENTER TO PLANT // LO-FI SPINS WHILE YOU FOCUS // WATER YOUR TASKS DAILY</footer>
