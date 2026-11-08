@@ -50,3 +50,7 @@ npm run build
 - 7 unit tests + GitHub Actions CI
 
 Set GROQ_API_KEY in the environment (or Netlify env vars) to enable real AI quests.
+
+## World maps
+
+Three real backgrounds selectable in-game (WORLD selector): Farm Valley (default), Old Village, Enchanted Forest. Each has its own land/water mask used for spawning and collision.

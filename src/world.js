@@ -1,5 +1,7 @@
 import { keyImage } from './key.js';
 import mapUrl from './assets/world/village-map.jpg';
+import mapFarmUrl from './assets/world/map-farm.png';
+import mapForestUrl from './assets/world/map-forest.png';
 import propsUrl from './assets/world/village-props.jpg';
 import potsUrl from './assets/world/potted-plants-sheet.jpg';
 import pots2Url from './assets/world/pots-sheet.jpg';
@@ -51,6 +53,12 @@ export const WORLD_W = 1200;
 export const WORLD_H = 2080;
 
 const MAP_SCALE = 2.5;
+
+export const WORLD_MAPS = [
+  { id: 'farm', name: 'FARM VALLEY' },
+  { id: 'village', name: 'OLD VILLAGE' },
+  { id: 'forest', name: 'ENCHANTED FOREST' }
+];
 
 const propsRect = (col, row) => [col * (533 / 4), row * (800 / 6), 533 / 4, 800 / 6];
 const potsRect = (col, row) => [col * (736 / 4), row * (1104 / 4), 736 / 4, 1104 / 4];
@@ -232,12 +240,12 @@ function loadAssets() {
       loadImage(soldierDeathUrl), loadImage(tsPawnIdleUrl), loadImage(tsPawnRunUrl),
       loadImage(tsArcherIdleUrl), loadImage(tsArcherRunUrl), loadImage(tsMonkIdleUrl), loadImage(tsMonkRunUrl),
       loadImage(lancerIdleUrl), loadImage(lancerRunUrl), loadImage(lancerAttackUrl),
-      loadImage(sproutCoopUrl), loadImage(sproutBridgeUrl), loadImage(sproutChestUrl), loadImage(sproutPlantsUrl)
+      loadImage(sproutCoopUrl), loadImage(sproutBridgeUrl), loadImage(sproutChestUrl), loadImage(sproutPlantsUrl),
+      loadImage(mapFarmUrl), loadImage(mapForestUrl)
     ]).then(([map, props, pots, pots2, mc, animals, monsters, orc, rocks, weapons, promo, hud, iso, nature, seasonal, starlit, beds,
       soldierIdle, soldierWalk, soldierAttack, soldierHurt, orcIdle, orcWalk, orcAttack, chicken, cowAnim,
       tsCastle, tsHouse, tsTower, tsMonastery, soldierDeath, tsPawnIdle, tsPawnRun, tsArcherIdle, tsArcherRun, tsMonkIdle, tsMonkRun,
-      lancerIdle, lancerRun, lancerAttack, sproutCoop, sproutBridge, sproutChest, sproutPlants]) => ({
-      map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
+      lancerIdle, lancerRun, lancerAttack, sproutCoop, sproutBridge, sproutChest, sproutPlants, mapFarm, mapForest]) => ({
       anim: {
         soldierIdle, soldierWalk, soldierAttack, soldierHurt, soldierDeath,
         orc_idle: orcIdle, orc_walk: orcWalk, orc_attack: orcAttack,
@@ -247,7 +255,9 @@ function loadAssets() {
         ts_archer_idle: tsArcherIdle, ts_archer_run: tsArcherRun,
         ts_monk_idle: tsMonkIdle, ts_monk_run: tsMonkRun
       },
-      map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
+      maps: { village: map, farm: mapFarm, forest: mapForest },
+      masks: { village: buildLandMask(map), farm: buildLandMask(mapFarm), forest: buildLandMask(mapForest) },
+      hud, avo: makeAvoSprite(), raw: { weapons },
       sheets: {
         props: keyImage(props, 36),
         pots: keyImage(pots, 30),
@@ -373,12 +383,13 @@ export function createWorld(canvas, opts) {
   const enemies = [];
   const npcs = [];
   let camX = 0, camY = 0, raf = 0, ready = false, last = 0, t = 0, frames = 0;
+  let activeMap = ((getMap ? getMap() : null) || {}).w || 'farm';
   let hover = null, assets = null, active = false;
   let attackUntil = 0, attackCd = 0, invulnUntil = 0, hurtUntil = 0, lastWorldLv = 1;
 
   function isLand(wx, wy) {
-    if (!assets || !assets.land) return true;
-    const m = assets.land;
+    if (!assets || !assets.masks) return true;
+    const m = assets.masks[activeMap] || assets.masks.village;
     const mx = clamp(Math.floor(wx / WORLD_W * m.w), 0, m.w - 1);
     const my = clamp(Math.floor(wy / WORLD_H * m.h), 0, m.h - 1);
     return m.mask[my * m.w + mx] === 1;
@@ -758,7 +769,8 @@ export function createWorld(canvas, opts) {
     }
   }
 
-  function setMap(did, cid) {
+  function setMap(did, cid, wid) {
+    if (wid && assets && assets.maps && assets.maps[wid]) activeMap = wid;
     const d = DISTRICTS.find(x => x.id === did) || DISTRICTS[0];
     let p = { x: clamp(d.x, 60, WORLD_W - 60), y: clamp(d.y, 120, WORLD_H - 60) };
     if (assets && assets.land && !isOpenGround(p.x, p.y, 14)) p = landPoint(0, p.x, p.y);
@@ -796,7 +808,7 @@ export function createWorld(canvas, opts) {
       player.hp = player.maxHp;
       player.lastHurt = t;
       const mm = (getMap ? getMap() : null) || {};
-      setMap(mm.d || 'southgate', mm.c || 'day');
+      setMap(mm.d || 'southgate', mm.c || 'day', activeMap);
       onRespawn && onRespawn();
     }
     if (t - player.lastHurt > 5000 && player.hp < player.maxHp && !player.deathUntil) {
@@ -850,7 +862,9 @@ export function createWorld(canvas, opts) {
 
     if (ready) {
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(assets.map, camX / MAP_SCALE, camY / MAP_SCALE, VIEW_W / MAP_SCALE, VIEW_H / MAP_SCALE, 0, 0, VIEW_W, VIEW_H);
+      const img = assets.maps[activeMap] || assets.maps.village;
+      const sm = WORLD_W / img.width;
+      ctx.drawImage(img, camX / sm, camY / sm, VIEW_W / sm, VIEW_H / sm, 0, 0, VIEW_W, VIEW_H);
     } else {
       if (assets && assets.hud) {
         const s = Math.max(VIEW_W / assets.hud.width, VIEW_H / assets.hud.height);
@@ -915,12 +929,13 @@ export function createWorld(canvas, opts) {
     }
 
     if (ready) {
-      const mw = 64, mh = Math.round(mw * assets.map.height / assets.map.width);
+      const mini = assets.maps[activeMap] || assets.maps.village;
+      const mw = 64, mh = Math.round(mw * mini.height / mini.width);
       const mx = 8, my = 8;
       ctx.globalAlpha = 0.92;
       ctx.fillStyle = 'rgba(20,16,8,0.75)';
       ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
-      ctx.drawImage(assets.map, mx, my, mw, mh);
+      ctx.drawImage(mini, mx, my, mw, mh);
       ctx.strokeStyle = 'rgba(255,224,102,0.85)';
       ctx.lineWidth = 1;
       ctx.strokeRect(mx - 2.5, my - 2.5, mw + 5, mh + 5);
@@ -969,6 +984,7 @@ export function createWorld(canvas, opts) {
     getGem: () => gem,
     isLand: (x, y) => isLand(x, y),
     getHp: () => ({ hp: player.hp, max: player.maxHp }),
+    getWorldMap: () => activeMap,
     landPoint: (min) => landPoint(min || 0, player.x, player.y),
     setMap,
     setDir(name, down) {

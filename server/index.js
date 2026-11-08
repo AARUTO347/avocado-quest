@@ -126,7 +126,8 @@ app.put('/api/state', (req, res) => {
         weapon: typeof body.world.weapon === 'string' ? body.world.weapon.slice(0, 40) : null,
         map: {
           d: typeof (body.world.map && body.world.map.d) === 'string' ? body.world.map.d.slice(0, 24) : 'southgate',
-          c: typeof (body.world.map && body.world.map.c) === 'string' ? body.world.map.c.slice(0, 24) : 'day'
+          c: typeof (body.world.map && body.world.map.c) === 'string' ? body.world.map.c.slice(0, 24) : 'day',
+          w: typeof (body.world.map && body.world.map.w) === 'string' ? body.world.map.w.slice(0, 16) : 'farm'
         }
       }
       : DEFAULT_STATE.world

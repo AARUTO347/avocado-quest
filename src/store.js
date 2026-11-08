@@ -11,7 +11,7 @@ export const DEFAULT_STATE = {
   volume: 80,
   clockAlarm: { time: '18:00', enabled: false },
   theme: 'meadow',
-  world: { decor: [], bopped: 0, weapon: null, map: { d: 'southgate', c: 'day' } }
+  world: { decor: [], bopped: 0, weapon: null, map: { d: 'southgate', c: 'day', w: 'farm' } }
 };
 
 export async function loadState() {

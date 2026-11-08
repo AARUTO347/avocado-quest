@@ -7,7 +7,7 @@ import { ACHIEVEMENTS, checkAchievements, bumpHistory, lastDays } from './progre
 import { THEMES, themeById } from './themes.js';
 import {
   createWorld, DECOR, ENEMY_TYPES, decorThumbnails, enemyThumbnails,
-  WEAPON_BASES, WEAPON_TIERS, WEAPONS, DISTRICTS, CONDITIONS, weaponThumbnails
+  WEAPON_BASES, WEAPON_TIERS, WEAPONS, DISTRICTS, CONDITIONS, WORLD_MAPS, weaponThumbnails
 } from './world.js';
 import typewriterUrl from './assets/typewriter.png';
 import recordUrl from './assets/record.png';
@@ -28,7 +28,7 @@ const normWorld = w => ({
   visited: Array.isArray(w && w.visited) ? w.visited.slice(-60) : [],
   bopped: Number(w && w.bopped) || 0,
   weapon: typeof (w && w.weapon) === 'string' ? w.weapon : null,
-  map: { d: (w && w.map && w.map.d) || 'southgate', c: (w && w.map && w.map.c) || 'day' }
+  map: { d: (w && w.map && w.map.d) || 'southgate', c: (w && w.map && w.map.c) || 'day', w: (w && w.map && w.map.w) || 'farm' }
 });
 const normTask = t => ({
   description: '', category: 'general', priority: 'normal', dueAt: null,
@@ -254,13 +254,14 @@ export default function App() {
     say(w.name + ' EQUIPPED! ATTACK POWER +' + w.dmg + '!');
   };
 
-  const pickMap = (d, c) => {
-    setWorld(w => ({ ...w, map: { d, c }, visited: Array.from(new Set([...(w.visited || []), d + '-' + c])).slice(-60) }));
-    if (worldRef.current) worldRef.current.setMap(d, c);
+  const pickMap = (d, c, w) => {
+    setWorld(x => ({ ...x, map: { d, c, w }, visited: Array.from(new Set([...(x.visited || []), d + '-' + c])).slice(-60) }));
+    if (worldRef.current) worldRef.current.setMap(d, c, w);
     SFX.click();
     const dn = (DISTRICTS.find(x => x.id === d) || {}).name;
     const cn = (CONDITIONS.find(x => x.id === c) || {}).name;
-    say('TRAVELING TO ' + dn + ' AT ' + cn + '.');
+    const wn = (WORLD_MAPS.find(x => x.id === w) || {}).name;
+    say('TRAVELING TO ' + dn + ' IN ' + wn + ' AT ' + cn + '.');
   };
 
   const togglePlacing = id => {
@@ -293,7 +294,7 @@ export default function App() {
       });
     }
     const m = worldDataRef.current.map;
-    if (m) setTimeout(() => worldRef.current && worldRef.current.setMap(m.d, m.c), 60);
+    if (m) setTimeout(() => worldRef.current && worldRef.current.setMap(m.d, m.c, m.w), 60);
     return () => { worldRef.current && worldRef.current.destroy(); worldRef.current = null; };
   }, []);
 
@@ -875,13 +876,18 @@ export default function App() {
       <section className="panel world-panel">
         <h2>&#127794; AVO VILLAGE // RPG WORLD</h2>
         <div className="map-bar">
+          <label>WORLD
+            <select value={world.map.w} onChange={e => pickMap(world.map.d, world.map.c, e.target.value)} aria-label="choose world map">
+              {WORLD_MAPS.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </label>
           <label>MAP
-            <select value={world.map.d} onChange={e => pickMap(e.target.value, world.map.c)} aria-label="choose district">
+            <select value={world.map.d} onChange={e => pickMap(e.target.value, world.map.c, world.map.w)} aria-label="choose district">
               {DISTRICTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </label>
           <label>SKY
-            <select value={world.map.c} onChange={e => pickMap(world.map.d, e.target.value)} aria-label="choose sky">
+            <select value={world.map.c} onChange={e => pickMap(world.map.d, e.target.value, world.map.w)} aria-label="choose sky">
               {CONDITIONS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
