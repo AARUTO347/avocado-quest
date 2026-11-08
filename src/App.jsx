@@ -283,6 +283,8 @@ export default function App() {
         onPlace: placeDecor,
         onDamage: hurtScrap,
         onSwing: () => SFX.swing(),
+        onDeath: () => { setStats(s => ({ ...s, scrap: Math.max(0, s.scrap - 10) })); SFX.hurt(); say('AVO FAINTED! YOU LOST 10 SCRAP... WALK IT OFF AND TRY AGAIN.'); },
+        onRespawn: () => { SFX.boot(); say('BACK ON YOUR FEET! FULL HEALTH AND READY.'); },
         onBop: () => setWorld(w => ({ ...w, bopped: (w.bopped || 0) + 1 })),
         getBopped: () => worldDataRef.current.bopped || 0,
         getMap: () => worldDataRef.current.map || { d: 'southgate', c: 'day' },

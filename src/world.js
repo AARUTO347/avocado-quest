@@ -29,6 +29,20 @@ import tsCastleUrl from './assets/world/ts_castle.png';
 import tsHouseUrl from './assets/world/ts_house.png';
 import tsTowerUrl from './assets/world/ts_tower.png';
 import tsMonasteryUrl from './assets/world/ts_monastery.png';
+import soldierDeathUrl from './assets/world/soldier_death.png';
+import tsPawnIdleUrl from './assets/world/ts_pawn_idle.png';
+import tsPawnRunUrl from './assets/world/ts_pawn_run.png';
+import tsArcherIdleUrl from './assets/world/ts_archer_idle.png';
+import tsArcherRunUrl from './assets/world/ts_archer_run.png';
+import tsMonkIdleUrl from './assets/world/ts_monk_idle.png';
+import tsMonkRunUrl from './assets/world/ts_monk_run.png';
+import lancerIdleUrl from './assets/world/lancer_idle.png';
+import lancerRunUrl from './assets/world/lancer_run.png';
+import lancerAttackUrl from './assets/world/lancer_attack.png';
+import sproutCoopUrl from './assets/world/sprout_coop.png';
+import sproutBridgeUrl from './assets/world/sprout_bridge.png';
+import sproutChestUrl from './assets/world/sprout_chest.png';
+import sproutPlantsUrl from './assets/world/sprout_plants.png';
 import { STAGES, PAL } from './sprites.js';
 
 export const VIEW_W = 960;
@@ -79,7 +93,11 @@ export const DECOR = [
   { id: 'castle', name: 'STONE KEEP', cost: 34, sheet: 'ts_castle', rect: [0, 0, 320, 256], w: 118, h: 94 },
   { id: 'manor', name: 'MANOR', cost: 20, sheet: 'ts_house', rect: [0, 0, 128, 192], w: 66, h: 98 },
   { id: 'tower', name: 'WATCHTOWER', cost: 26, sheet: 'ts_tower', rect: [0, 0, 128, 256], w: 56, h: 112 },
-  { id: 'monastery', name: 'MONASTERY', cost: 30, sheet: 'ts_monastery', rect: [0, 0, 192, 320], w: 74, h: 122 }
+  { id: 'monastery', name: 'MONASTERY', cost: 30, sheet: 'ts_monastery', rect: [0, 0, 192, 320], w: 74, h: 122 },
+  { id: 'coop', name: 'CHICKEN COOP', cost: 12, sheet: 'sprout_coop', rect: [0, 0, 48, 48], w: 44, h: 40 },
+  { id: 'bridge', name: 'WOOD BRIDGE', cost: 10, sheet: 'sprout_bridge', rect: [0, 0, 80, 48], w: 66, h: 38 },
+  { id: 'lockbox', name: 'LOCKBOX', cost: 8, sheet: 'sprout_chest', rect: [0, 0, 80, 96], w: 42, h: 34 },
+  { id: 'bush', name: 'BUSH', cost: 4, sheet: 'sprout_plants', rect: [0, 0, 32, 32], w: 30, h: 24 }
 ];
 
 export const ENEMY_TYPES = [
@@ -90,14 +108,18 @@ export const ENEMY_TYPES = [
   { name: 'GHOST', sheet: 'animals', rects: [[420, 460, 90, 120]], h: 54, hp: 1, tier: 1, reward: 2, damage: 2 },
   { name: 'ZOMBIE', sheet: 'animals', rects: [[500, 470, 90, 120]], h: 56, hp: 2, tier: 2, reward: 3, damage: 2 },
   { name: 'WILD BOAR', sheet: 'animals', rects: [[580, 420, 160, 130]], h: 44, hp: 1, tier: 1, reward: 2, damage: 2 },
-  { name: 'ORANGE BRUTE', sheet: 'animals', rects: [[615, 285, 125, 125]], h: 62, hp: 3, tier: 3, reward: 5, damage: 3 }
+  { name: 'ORANGE BRUTE', sheet: 'animals', rects: [[615, 285, 125, 125]], h: 62, hp: 3, tier: 3, reward: 5, damage: 3 },
+  { name: 'BANDIT', anim: { idle: 'lancer_idle', walk: 'lancer_run', attack: 'lancer_attack', cell: 320, frames: 12, walkFrames: 6 }, h: 96, hp: 2, tier: 2, reward: 3, damage: 3 }
 ];
 
 const NPC_TYPES = [
   { name: 'COW', anim: { sheet: 'cow_anim', cellW: 32, cellH: 64, frames: 3 }, h: 44 },
   { name: 'BULL', sheet: 'animals', rect: [440, 600, 160, 120], h: 50 },
   { name: 'CHICKEN', anim: { sheet: 'chicken', cellW: 32, cellH: 32, frames: 2 }, h: 22 },
-  { name: 'MUSHROOM', sheet: 'animals', rect: [280, 470, 90, 100], h: 34 }
+  { name: 'MUSHROOM', sheet: 'animals', rect: [280, 470, 90, 100], h: 34 },
+  { name: 'GUARD', anim: { sheet: 'ts_pawn_idle', run: 'ts_pawn_run', cellW: 192, frames: 8, runFrames: 6 }, h: 74 },
+  { name: 'ARCHER', anim: { sheet: 'ts_archer_idle', run: 'ts_archer_run', cellW: 192, frames: 6, runFrames: 4 }, h: 74 },
+  { name: 'MONK', anim: { sheet: 'ts_monk_idle', run: 'ts_monk_run', cellW: 192, frames: 6, runFrames: 6 }, h: 74 }
 ];
 
 export const WEAPON_BASES = [
@@ -206,12 +228,25 @@ function loadAssets() {
       loadImage(natureUrl), loadImage(seasonalUrl), loadImage(starlitUrl), loadImage(bedsUrl),
       loadImage(soldierIdleUrl), loadImage(soldierWalkUrl), loadImage(soldierAttackUrl), loadImage(soldierHurtUrl),
       loadImage(orcIdleUrl), loadImage(orcWalkUrl), loadImage(orcAttackUrl), loadImage(chickenUrl), loadImage(cowAnimUrl),
-      loadImage(tsCastleUrl), loadImage(tsHouseUrl), loadImage(tsTowerUrl), loadImage(tsMonasteryUrl)
+      loadImage(tsCastleUrl), loadImage(tsHouseUrl), loadImage(tsTowerUrl), loadImage(tsMonasteryUrl),
+      loadImage(soldierDeathUrl), loadImage(tsPawnIdleUrl), loadImage(tsPawnRunUrl),
+      loadImage(tsArcherIdleUrl), loadImage(tsArcherRunUrl), loadImage(tsMonkIdleUrl), loadImage(tsMonkRunUrl),
+      loadImage(lancerIdleUrl), loadImage(lancerRunUrl), loadImage(lancerAttackUrl),
+      loadImage(sproutCoopUrl), loadImage(sproutBridgeUrl), loadImage(sproutChestUrl), loadImage(sproutPlantsUrl)
     ]).then(([map, props, pots, pots2, mc, animals, monsters, orc, rocks, weapons, promo, hud, iso, nature, seasonal, starlit, beds,
       soldierIdle, soldierWalk, soldierAttack, soldierHurt, orcIdle, orcWalk, orcAttack, chicken, cowAnim,
-      tsCastle, tsHouse, tsTower, tsMonastery]) => ({
+      tsCastle, tsHouse, tsTower, tsMonastery, soldierDeath, tsPawnIdle, tsPawnRun, tsArcherIdle, tsArcherRun, tsMonkIdle, tsMonkRun,
+      lancerIdle, lancerRun, lancerAttack, sproutCoop, sproutBridge, sproutChest, sproutPlants]) => ({
       map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
-      anim: { soldierIdle, soldierWalk, soldierAttack, soldierHurt, orc_idle: orcIdle, orc_walk: orcWalk, orc_attack: orcAttack, chicken, cow_anim: cowAnim },
+      anim: {
+        soldierIdle, soldierWalk, soldierAttack, soldierHurt, soldierDeath,
+        orc_idle: orcIdle, orc_walk: orcWalk, orc_attack: orcAttack,
+        chicken, cow_anim: cowAnim,
+        lancer_idle: lancerIdle, lancer_run: lancerRun, lancer_attack: lancerAttack,
+        ts_pawn_idle: tsPawnIdle, ts_pawn_run: tsPawnRun,
+        ts_archer_idle: tsArcherIdle, ts_archer_run: tsArcherRun,
+        ts_monk_idle: tsMonkIdle, ts_monk_run: tsMonkRun
+      },
       map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
       sheets: {
         props: keyImage(props, 36),
@@ -232,7 +267,11 @@ function loadAssets() {
         ts_castle: tsCastle,
         ts_house: tsHouse,
         ts_tower: tsTower,
-        ts_monastery: tsMonastery
+        ts_monastery: tsMonastery,
+        sprout_coop: sproutCoop,
+        sprout_bridge: sproutBridge,
+        sprout_chest: keyImage(sproutChest, 24),
+        sprout_plants: keyImage(sproutPlants, 24)
       }
     }));
   }
@@ -324,9 +363,9 @@ export function decorThumbnails() {
 
 export function createWorld(canvas, opts) {
   const ctx = canvas.getContext('2d');
-  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage } = opts;
+  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage, onDeath, onRespawn } = opts;
 
-  const player = { x: WORLD_W / 2, y: WORLD_H - 260, dir: 1, moving: false };
+  const player = { x: WORLD_W / 2, y: WORLD_H - 260, dir: 1, moving: false, hp: 100, maxHp: 100, lastHurt: -99999, deathUntil: 0 };
   const avo = { x: player.x - 46, y: player.y + 30, dir: 1, hopUntil: 0 };
   const keys = {};
   const coins = [];
@@ -548,7 +587,9 @@ export function createWorld(canvas, opts) {
     }
     ctx.imageSmoothingEnabled = false;
     const A = assets.anim;
-    if (t < attackUntil) {
+    if (t < player.deathUntil) {
+      drawAnim(A.soldierDeath, 100, 6, 0.012, t, x, y + bob, 160, player.dir);
+    } else if (t < attackUntil) {
       drawAnim(A.soldierAttack, 100, 6, 0.024, t, x, y + bob, 160, player.dir);
     } else if (t < hurtUntil) {
       drawAnim(A.soldierHurt, 100, 4, 0.018, t, x, y + bob, 160, player.dir);
@@ -622,7 +663,9 @@ export function createWorld(canvas, opts) {
     const dir = npc.vx < 0 ? -1 : 1;
     if (npc.type.anim) {
       const cfg = npc.type.anim;
-      drawAnim(assets.anim[cfg.sheet], cfg.cellW, cfg.frames, 0.012, t + npc.phase * 100, x, y + hop, npc.type.h, dir);
+      const moving = Math.abs(npc.vx) + Math.abs(npc.vy) > 0.05;
+      const sheet = moving && cfg.run ? assets.anim[cfg.run] : assets.anim[cfg.sheet];
+      drawAnim(sheet, cfg.cellW, moving && cfg.run ? cfg.runFrames : cfg.frames, 0.014, t + npc.phase * 100, x, y + hop, npc.type.h, dir);
     } else {
       drawSprite(assets.sheets[npc.type.sheet], npc.type.rect, x, y + hop, npc.type.h, dir);
     }
@@ -679,11 +722,17 @@ export function createWorld(canvas, opts) {
       if (isLand(ex, en.y)) en.x = ex;
       if (isLand(en.x, ey)) en.y = ey;
 
-      if (dist < 34 && t > invulnUntil) {
+      if (dist < 34 && t > invulnUntil && t > player.deathUntil) {
         invulnUntil = t + 1300;
         hurtUntil = t + 500;
         en.attackUntil = t + 420;
+        player.hp = Math.max(0, player.hp - (en.damage || 2) * 8);
+        player.lastHurt = t;
         onDamage && onDamage(en.damage || 2);
+        if (player.hp <= 0) {
+          player.deathUntil = t + 1500;
+          onDeath && onDeath();
+        }
         const push = dist || 1;
         const kx = clamp(player.x + ((player.x - en.x) / push) * 46, 24, WORLD_W - 24);
         const ky = clamp(player.y + ((player.y - en.y) / push) * 46, 60, WORLD_H - 30);
@@ -736,10 +785,23 @@ export function createWorld(canvas, opts) {
     if (dx && dy) { dx *= 0.707; dy *= 0.707; }
     player.moving = !!(dx || dy);
     if (dx) player.dir = dx > 0 ? 1 : -1;
-    const nx = clamp(player.x + dx * sp, 24, WORLD_W - 24);
-    const ny = clamp(player.y + dy * sp, 60, WORLD_H - 30);
-    if (dx && isLand(nx, player.y)) player.x = nx;
-    if (dy && isLand(player.x, ny)) player.y = ny;
+    if (t > player.deathUntil) {
+      const nx = clamp(player.x + dx * sp, 24, WORLD_W - 24);
+      const ny = clamp(player.y + dy * sp, 60, WORLD_H - 30);
+      if (dx && isLand(nx, player.y)) player.x = nx;
+      if (dy && isLand(player.x, ny)) player.y = ny;
+    }
+    if (player.deathUntil && t > player.deathUntil) {
+      player.deathUntil = 0;
+      player.hp = player.maxHp;
+      player.lastHurt = t;
+      const mm = (getMap ? getMap() : null) || {};
+      setMap(mm.d || 'southgate', mm.c || 'day');
+      onRespawn && onRespawn();
+    }
+    if (t - player.lastHurt > 5000 && player.hp < player.maxHp && !player.deathUntil) {
+      player.hp = Math.min(player.maxHp, player.hp + 0.012 * dt);
+    }
 
     camX = clamp(player.x - VIEW_W / 2, 0, WORLD_W - VIEW_W);
     camY = clamp(player.y - VIEW_H * 0.58, 0, WORLD_H - VIEW_H);
@@ -845,6 +907,13 @@ export function createWorld(canvas, opts) {
       }
     }
 
+    if (player.hp < player.maxHp && t > player.deathUntil) {
+      const bw = 38, bx = Math.round(player.x - camX - bw / 2), by = Math.round(player.y - camY - 140);
+      ctx.fillStyle = '#3a1f14'; ctx.fillRect(bx - 1, by - 1, bw + 2, 6);
+      ctx.fillStyle = '#c0392b'; ctx.fillRect(bx, by, bw, 4);
+      ctx.fillStyle = '#7ec850'; ctx.fillRect(bx, by, bw * (player.hp / player.maxHp), 4);
+    }
+
     if (ready) {
       const mw = 64, mh = Math.round(mw * assets.map.height / assets.map.width);
       const mx = 8, my = 8;
@@ -863,6 +932,14 @@ export function createWorld(canvas, opts) {
       for (const n of npcs) dot(n.x, n.y, '#7ec850', 2);
       dot(player.x, player.y, '#ffe066', 4);
       dot(avo.x, avo.y, '#dbe37a', 2);
+      const hbY = my + mh + 8;
+      ctx.fillStyle = 'rgba(20,16,8,0.75)';
+      ctx.fillRect(mx - 2, hbY - 2, mw + 4, 12);
+      ctx.fillStyle = '#c0392b'; ctx.fillRect(mx, hbY, mw, 8);
+      ctx.fillStyle = '#7ec850'; ctx.fillRect(mx, hbY, mw * (player.hp / player.maxHp), 8);
+      ctx.fillStyle = '#fff6d8';
+      ctx.font = 'bold 6px monospace';
+      ctx.fillText(Math.ceil(player.hp) + '/' + player.maxHp, mx + 3, hbY + 6);
       ctx.globalAlpha = 1;
     }
 
@@ -891,6 +968,7 @@ export function createWorld(canvas, opts) {
     getFrames: () => frames,
     getGem: () => gem,
     isLand: (x, y) => isLand(x, y),
+    getHp: () => ({ hp: player.hp, max: player.maxHp }),
     landPoint: (min) => landPoint(min || 0, player.x, player.y),
     setMap,
     setDir(name, down) {
