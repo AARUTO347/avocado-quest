@@ -122,6 +122,12 @@ app.put('/api/state', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------- v2: AI ---------- */
+app.post('/api/v2/ai/quests', async (req, res) => {
+  try { res.json(await core.generateQuests(req.body || {})); }
+  catch { res.status(500).json({ error: 'ai_failed' }); }
+});
+
 /* ---------- v2: auth ---------- */
 app.post('/api/v2/auth/signup', async (req, res) => {
   const r = await core.signup(store, req.body || {});

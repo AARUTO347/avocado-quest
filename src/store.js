@@ -4,7 +4,7 @@ export const DEFAULT_STATE = {
   tasks: [],
   stats: {
     xp: 0, level: 1, scrap: 0, completed: 0,
-    streak: 0, lastDoneDate: null, focusSessions: 0
+    streak: 0, lastDoneDate: null, focusSessions: 0, history: {}, unlocked: []
   },
   soundOn: true,
   durations: { work: 25, break: 5, long: 15 },

@@ -37,3 +37,16 @@ npm run build
 
 - Guest mode stores progress in `server/data.json` (git-ignored) or localStorage.
 - The trusted server engine lives in `server/core.mjs` and `netlify/functions/api.mjs`.
+
+## New in this release
+
+- Timestamp-authoritative focus timer (survives background tabs)
+- Tab-sync notice when another tab saves over yours
+- 21 achievements with unlock toasts + 14-day analytics dashboard
+- AI quest generator (Groq server-side, template fallback) with approval flow
+- Accounts: sign up / sign in, privacy toggle, weekly XP leaderboard, trusted quest rewards
+- PWA: installable app, service worker, offline shell, OG/social tags
+- Error boundary, focus styles, reduced-motion support
+- 7 unit tests + GitHub Actions CI
+
+Set GROQ_API_KEY in the environment (or Netlify env vars) to enable real AI quests.

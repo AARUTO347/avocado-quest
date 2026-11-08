@@ -95,6 +95,11 @@ export default async (req) => {
     return json({ user: await core.updateProfile(store, user, body) });
   }
 
+  /* ----- AI ----- */
+  if (path === '/api/v2/ai/quests' && req.method === 'POST') {
+    return json(await core.generateQuests(body));
+  }
+
   /* ----- state ----- */
   if (path === '/api/v2/state' && req.method === 'GET') {
     const user = await requireUser(req);

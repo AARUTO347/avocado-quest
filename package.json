@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node --test server/core.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^8.2.0",

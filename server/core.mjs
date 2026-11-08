@@ -121,9 +121,14 @@ export function completeQuest(state, { eventId, questId }) {
   const task = (state.tasks || []).find(t => t.id === questId);
   if (!task) return { ok: false, error: 'quest_not_found' };
   if (task.done) {
-    const dup = ledgerHas(state, eventId);
-    if (!dup) return { ok: false, error: 'already_done' };
-    return { ok: true, duplicate: true, progress: state.progress };
+    if (ledgerHas(state, eventId)) return { ok: true, duplicate: true, progress: state.progress };
+    const rewardedBefore = (state.ledger || []).some(e => e.questId === questId);
+    if (rewardedBefore) return { ok: false, error: 'already_done' };
+    // Already marked done client-side but never rewarded: grant once, guarded by the ledger.
+    const progDone = state.settings?.progression || defaultProgression();
+    const replay = grantReward(state, { eventId, eventType: 'quest', xp: task.xp || 20, scrap: progDone.scrapPerQuest, meta: { questId } });
+    if (replay.granted) pushActivity(state, 'quest_completed', { questId, text: task.text, category: task.category, xp: task.xp });
+    return { ok: true, duplicate: false, ...replay, task };
   }
   task.done = true;
   task.completedAt = Date.now();
@@ -307,4 +312,59 @@ export async function leaderboard(store, { period = 'week' }) {
   }
   entries.sort((a, b) => b.xp - a.xp || a.username.localeCompare(b.username));
   return entries.slice(0, 100);
+}
+
+/* ---------- AI quest generator (Groq, server-side only) ---------- */
+const QUEST_CATEGORIES = ['general', 'work', 'health', 'learning', 'chores', 'fun'];
+const QUEST_PRIORITIES = ['low', 'normal', 'high'];
+
+function fallbackQuests(goal, count) {
+  const g = String(goal || 'get things done').slice(0, 60).toLowerCase();
+  const templates = [
+    { text: 'Plan the next step for ' + g, category: 'general', priority: 'high', minutes: 15 },
+    { text: 'Spend 25 focused minutes on ' + g, category: 'work', priority: 'normal', minutes: 25 },
+    { text: 'Clear one small blocker for ' + g, category: 'work', priority: 'normal', minutes: 20 },
+    { text: 'Review progress on ' + g, category: 'general', priority: 'low', minutes: 10 },
+    { text: 'Tidy your workspace before ' + g, category: 'chores', priority: 'low', minutes: 10 },
+    { text: 'Write three notes about ' + g, category: 'learning', priority: 'normal', minutes: 15 },
+    { text: 'Take a short walk to recharge', category: 'health', priority: 'low', minutes: 15 },
+    { text: 'Celebrate one win from ' + g, category: 'fun', priority: 'low', minutes: 5 }
+  ];
+  return templates.slice(0, Math.max(1, Math.min(8, count || 5)));
+}
+
+export async function generateQuests({ goal, count } = {}) {
+  const n = Math.max(1, Math.min(8, Number(count) || 5));
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return { source: 'fallback', quests: fallbackQuests(goal, n) };
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+        temperature: 0.7,
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'You create short cozy productivity quests. Reply ONLY as JSON: {"quests":[{"text":"...","category":"general|work|health|learning|chores|fun","priority":"low|normal|high","minutes":10-120}]}. Text max 70 characters, no emojis.' },
+          { role: 'user', content: 'Goal: ' + String(goal || 'a productive day').slice(0, 120) + '. Give exactly ' + n + ' quests.' }
+        ]
+      })
+    });
+    if (!r.ok) throw new Error('groq_' + r.status);
+    const j = await r.json();
+    const parsed = JSON.parse(j.choices[0].message.content);
+    const list = Array.isArray(parsed.quests) ? parsed.quests : [];
+    const quests = list.slice(0, n).map(q => ({
+      text: String(q.text || '').slice(0, 90).trim(),
+      category: QUEST_CATEGORIES.includes(q.category) ? q.category : 'general',
+      priority: QUEST_PRIORITIES.includes(q.priority) ? q.priority : 'normal',
+      minutes: Math.max(5, Math.min(120, Number(q.minutes) || 25))
+    })).filter(q => q.text);
+    if (!quests.length) throw new Error('empty');
+    return { source: 'groq', quests };
+  } catch {
+    return { source: 'fallback', quests: fallbackQuests(goal, n) };
+  }
 }

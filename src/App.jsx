@@ -3,6 +3,7 @@ import { createScene } from './scene.js';
 import { stageFor, STAGES } from './sprites.js';
 import { SFX, Lofi, setSoundEnabled, setVolume, unlockAudio } from './audio.js';
 import { loadState, saveState } from './store.js';
+import { ACHIEVEMENTS, checkAchievements, bumpHistory, lastDays } from './progression.js';
 import { THEMES, themeById } from './themes.js';
 import {
   createWorld, DECOR, ENEMY_TYPES, decorThumbnails, enemyThumbnails,
@@ -24,6 +25,7 @@ const RECURRENCES = ['none', 'daily', 'weekly'];
 const BLANK_DRAFT = { text: '', category: 'general', priority: 'normal', dueAt: '', recurrence: 'none', description: '' };
 const normWorld = w => ({
   decor: Array.isArray(w && w.decor) ? w.decor.slice(0, 80) : [],
+  visited: Array.isArray(w && w.visited) ? w.visited.slice(-60) : [],
   bopped: Number(w && w.bopped) || 0,
   weapon: typeof (w && w.weapon) === 'string' ? w.weapon : null,
   map: { d: (w && w.map && w.map.d) || 'southgate', c: (w && w.map && w.map.c) || 'day' }
@@ -41,10 +43,23 @@ const localDate = () => {
 export default function App() {
   const [ready, setReady] = useState(false);
   const [tasks, setTasks] = useState([]);
-  const [stats, setStats] = useState({ xp: 0, level: 1, scrap: 0, completed: 0, streak: 0, lastDoneDate: null, focusSessions: 0 });
+  const [stats, setStats] = useState({ xp: 0, level: 1, scrap: 0, completed: 0, streak: 0, lastDoneDate: null, focusSessions: 0, history: {}, unlocked: [] });
   const [soundOn, setSoundOn] = useState(true);
   const [remote, setRemote] = useState(false);
-  const [timer, setTimer] = useState({ mode: 'idle', left: 25 * 60, running: false, finished: false });
+  const [timer, setTimer] = useState({ mode: 'idle', left: 25 * 60, running: false, finished: false, endAt: null });
+  const [stale, setStale] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGoal, setAiGoal] = useState('');
+  const [aiQuests, setAiQuests] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authForm, setAuthForm] = useState({ username: '', password: '', displayName: '' });
+  const [authError, setAuthError] = useState('');
+  const [board, setBoard] = useState([]);
+  const tabId = useRef(Math.random().toString(36).slice(2));
+  const channelRef = useRef(null);
   const [durations, setDurations] = useState({ work: 25, break: 5, long: 15 });
   const [volume, setVolumeState] = useState(80);
   const [clockAlarm, setClockAlarm] = useState({ time: '18:00', enabled: false });
@@ -134,7 +149,7 @@ export default function App() {
 
   useEffect(() => {
     loadState().then(st => {
-      setTasks(st.tasks.map(normTask)); setStats(st.stats); setSoundOn(st.soundOn); setRemote(!!st.remote);
+      setTasks(st.tasks.map(normTask)); setStats({ ...st.stats, history: st.stats.history || {}, unlocked: st.stats.unlocked || [] }); setSoundOn(st.soundOn); setRemote(!!st.remote);
       if (st.durations) setDurations(d => ({ ...d, ...st.durations }));
       if (typeof st.volume === 'number') { setVolumeState(st.volume); setVolume(st.volume / 100); }
       if (st.clockAlarm) setClockAlarm(c => ({ ...c, ...st.clockAlarm }));
@@ -152,6 +167,51 @@ export default function App() {
     if (!ready) return;
     saveState({ tasks, stats, soundOn, remote, durations, volume, clockAlarm, theme, world });
   }, [tasks, stats, soundOn, ready, durations, volume, clockAlarm, theme, world]);
+
+  useEffect(() => {
+    fetch('/api/v2/auth/me').then(r => r.ok ? r.json() : null).then(j => { if (j && j.user) setUser(j.user); }).catch(() => {});
+    fetch('/api/v2/leaderboard').then(r => r.ok ? r.json() : null).then(j => { if (j && j.entries) setBoard(j.entries); }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!user || !ready) return;
+    const id = setTimeout(() => {
+      fetch('/api/v2/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks, world })
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(id);
+  }, [tasks, world, user, ready]);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel('avoquest-sync');
+    ch.onmessage = e => { if (e.data && e.data.tab !== tabId.current) setStale(true); };
+    channelRef.current = ch;
+    return () => ch.close();
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !channelRef.current) return;
+    channelRef.current.postMessage({ tab: tabId.current, ts: Date.now() });
+  }, [tasks, stats, world, theme, soundOn, durations, volume, clockAlarm, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const fresh = checkAchievements({ stats, world });
+    if (!fresh.length) return;
+    setStats(s => ({ ...s, unlocked: Array.from(new Set([...(s.unlocked || []), ...fresh])) }));
+    const first = ACHIEVEMENTS.find(x => x.id === fresh[0]);
+    if (first) {
+      setBanner({ text: 'ACHIEVEMENT: ' + first.name });
+      setTimeout(() => setBanner(null), 2600);
+      SFX.levelup();
+      say('ACHIEVEMENT UNLOCKED! ' + first.name + '!');
+      sceneRef.current && sceneRef.current.burst(['#ffe066', '#fff8e7', '#7ec850'], 24);
+    }
+  }, [stats, world, ready]);
 
   const pickTheme = id => {
     if (id === theme) return;
@@ -195,7 +255,7 @@ export default function App() {
   };
 
   const pickMap = (d, c) => {
-    setWorld(w => ({ ...w, map: { d, c } }));
+    setWorld(w => ({ ...w, map: { d, c }, visited: Array.from(new Set([...(w.visited || []), d + '-' + c])).slice(-60) }));
     if (worldRef.current) worldRef.current.setMap(d, c);
     SFX.click();
     const dn = (DISTRICTS.find(x => x.id === d) || {}).name;
@@ -266,13 +326,29 @@ export default function App() {
     if (!timer.running) return;
     const id = setInterval(() => {
       setTimer(t => {
-        if (t.left <= 1) return { ...t, left: 0, running: false, finished: true };
-        if (t.left <= 6) SFX.tick();
-        return { ...t, left: t.left - 1 };
+        if (!t.running || !t.endAt) return t;
+        const left = Math.max(0, Math.round((t.endAt - Date.now()) / 1000));
+        if (left === t.left) return t;
+        if (left <= 6 && left > 0) SFX.tick();
+        if (left <= 0) return { ...t, left: 0, running: false, finished: true, endAt: null };
+        return { ...t, left };
       });
-    }, 1000);
+    }, 250);
     return () => clearInterval(id);
   }, [timer.running]);
+
+  useEffect(() => {
+    const onVis = () => {
+      setTimer(t => {
+        if (!t.running || !t.endAt) return t;
+        const left = Math.max(0, Math.round((t.endAt - Date.now()) / 1000));
+        if (left <= 0) return { ...t, left: 0, running: false, finished: true, endAt: null };
+        return left === t.left ? t : { ...t, left };
+      });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   useEffect(() => {
     if (!timer.finished) return;
@@ -283,20 +359,119 @@ export default function App() {
       sceneRef.current && sceneRef.current.burst(['#f7b6c8', '#ffe066', '#7ec850']);
       const done = statsRef.current.focusSessions + 1;
       const isLong = done % 4 === 0;
-      setStats(s => bumpStats({ ...s, focusSessions: s.focusSessions + 1, scrap: s.scrap + 10 }, 30));
+      setStats(s => bumpStats({ ...s, focusSessions: s.focusSessions + 1, scrap: s.scrap + 10, history: bumpHistory(s.history, { f: 1, m: durations.work, xp: 30 }) }, 30));
       if (isLong) {
         say('FOCUS COMPLETE! +30XP! YOU EARNED A LONG ' + durations.long + ' MIN RECHARGE!');
-        setTimer({ mode: 'break', left: durations.long * 60, running: true, finished: false, long: true });
+        setTimer({ mode: 'break', left: durations.long * 60, running: true, finished: false, long: true, endAt: Date.now() + durations.long * 60000 });
       } else {
         say('FOCUS COMPLETE! +30XP +10 SCRAP! RECHARGING NOW...');
-        setTimer({ mode: 'break', left: durations.break * 60, running: true, finished: false });
+        setTimer({ mode: 'break', left: durations.break * 60, running: true, finished: false, endAt: Date.now() + durations.break * 60000 });
       }
     } else {
       SFX.win();
       say('BATTERY FULL! READY FOR THE NEXT SESSION!');
-      setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false });
+      setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false, endAt: null });
     }
   }, [timer.finished]);
+
+  const addQuest = q => {
+    setTasks(ts => [...ts, normTask({
+      id: Date.now() + Math.random(),
+      text: q.text,
+      done: false,
+      xp: 20,
+      category: q.category || 'general',
+      priority: q.priority || 'normal'
+    })]);
+    SFX.add();
+  };
+
+  const genQuests = async () => {
+    setAiLoading(true);
+    try {
+      const r = await fetch('/api/v2/ai/quests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: aiGoal || 'a productive day', count: 5 })
+      });
+      const j = await r.json();
+      setAiQuests(j.quests || []);
+      SFX.done();
+      say(j.source === 'groq' ? 'AI HARVESTED FRESH QUESTS! PLANT THEM!' : 'AI IS OFFLINE... HERE ARE STARTER QUESTS.');
+    } catch {
+      SFX.error();
+      say('AI COULD NOT REACH THE GARDEN. TRY AGAIN LATER.');
+    }
+    setAiLoading(false);
+  };
+
+  const acceptQuest = q => {
+    addQuest(q);
+    setAiQuests(list => list.filter(x => x !== q));
+    say('AI QUEST PLANTED!');
+  };
+
+  const acceptAll = () => {
+    aiQuests.forEach(addQuest);
+    setAiQuests([]);
+    say('ALL AI QUESTS PLANTED!');
+  };
+
+  const refreshBoard = () => {
+    fetch('/api/v2/leaderboard').then(r => r.ok ? r.json() : null).then(j => { if (j && j.entries) setBoard(j.entries); }).catch(() => {});
+  };
+
+  const submitAuth = async () => {
+    setAuthError('');
+    const path = authMode === 'login' ? '/api/v2/auth/login' : '/api/v2/auth/signup';
+    try {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: authForm.username.trim().toLowerCase(),
+          password: authForm.password,
+          displayName: authForm.displayName.trim() || authForm.username.trim()
+        })
+      });
+      const j = await r.json();
+      if (!r.ok) { setAuthError(j.error || 'failed'); SFX.error(); return; }
+      setUser(j.user);
+      setAuthOpen(false);
+      fetch('/api/v2/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks, world })
+      }).catch(() => {});
+      refreshBoard();
+      SFX.done();
+      say('SIGNED IN AS ' + j.user.username.toUpperCase() + '! QUESTS NOW SCORE ON THE LEADERBOARD.');
+    } catch {
+      setAuthError('network');
+      SFX.error();
+    }
+  };
+
+  const signOut = async () => {
+    await fetch('/api/v2/auth/logout', { method: 'POST' }).catch(() => {});
+    setUser(null);
+    setAuthOpen(false);
+    say('SIGNED OUT. PROGRESS STAYS LOCAL.');
+  };
+
+  const togglePrivacy = async () => {
+    if (!user) return;
+    const next = !(user.privacy && user.privacy.leaderboard !== false);
+    try {
+      const r = await fetch('/api/v2/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ privacy: { leaderboard: next } })
+      });
+      const j = await r.json();
+      if (r.ok) { setUser(j.user); refreshBoard(); say(next ? 'YOU ARE VISIBLE ON THE LEADERBOARD.' : 'LEADERBOARD PRIVACY ON.'); }
+    } catch { SFX.error(); }
+  };
 
   const addTask = () => {
     const text = inputRef.current.value.trim();
@@ -326,10 +501,26 @@ export default function App() {
       setStats(s => bumpStats({
         ...s,
         completed: s.completed + 1,
+        history: bumpHistory(s.history, { q: 1, xp: t.xp }),
         scrap: s.scrap + 5,
         streak: s.lastDoneDate === today ? s.streak : (s.lastDoneDate === yest ? s.streak + 1 : 1),
         lastDoneDate: today
       }, t.xp));
+    }
+    if (user) {
+      const synced = tasks.map(x => x.id === id ? { ...x, done: true, completedAt: now } : x);
+      fetch('/api/v2/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: synced, world })
+      })
+        .then(() => fetch('/api/v2/reward/quest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: 'q-' + String(t.id) + '-' + now, questId: String(t.id), xp: t.xp, scrap: 5 })
+        }))
+        .then(() => refreshBoard())
+        .catch(() => {});
     }
     SFX.done(); setTimeout(() => SFX.coin(), 300);
     moodRef.current.happyUntil = performance.now() + 2200;
@@ -373,12 +564,13 @@ export default function App() {
   const startPause = () => {
     unlockAudio(); SFX.click();
     if (timer.running) {
-      setTimer(t => ({ ...t, running: false }));
+      const left = timer.endAt ? Math.max(0, Math.round((timer.endAt - Date.now()) / 1000)) : timer.left;
+      setTimer(t => ({ ...t, running: false, left, endAt: null }));
       if (timer.mode === 'work') { Lofi.stop(); say('RECORD PAUSED... I WILL WAIT RIGHT HERE.'); }
     } else {
       let mode = timer.mode, left = timer.left;
       if (mode === 'idle' || left <= 0) { mode = 'work'; left = durations.work * 60; }
-      setTimer({ mode, left, running: true, finished: false });
+      setTimer({ mode, left, running: true, finished: false, endAt: Date.now() + left * 1000 });
       if (mode === 'work') {
         Lofi.start();
         moodRef.current.happyUntil = performance.now() + 1500;
@@ -391,7 +583,7 @@ export default function App() {
 
   const resetTimer = () => {
     SFX.click(); Lofi.stop();
-    setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false });
+    setTimer({ mode: 'idle', left: durations.work * 60, running: false, finished: false, endAt: null });
     say('TURNTABLE STOPPED. STANDING BY.');
   };
 
@@ -449,9 +641,23 @@ export default function App() {
             />
           ))}
         </div>
+        <button
+          className="wood"
+          onClick={() => {
+            if (navigator.share) navigator.share({ title: 'Avocado Quest', text: 'A cozy pixel productivity RPG', url: location.href }).catch(() => {});
+            else { navigator.clipboard && navigator.clipboard.writeText(location.href); say('LINK COPIED! SHARE THE VILLAGE.'); }
+          }}
+        >SHARE</button>
+        <button className="wood" onClick={() => { setAuthError(''); setAuthOpen(true); }}>{user ? user.username.toUpperCase() : 'SIGN IN'}</button>
         <button className="wood" onClick={toggleSound}>SOUND: {soundOn ? 'ON' : 'OFF'}</button>
       </header>
 
+      {stale && (
+        <div className="stale-bar">
+          <span>THIS SAVE WAS UPDATED IN ANOTHER TAB</span>
+          <button className="wood" onClick={() => location.reload()}>RELOAD</button>
+        </div>
+      )}
       <div className="scene-wrap">
         <canvas ref={canvasRef} width={480} height={260} />
         <div className="hud">
@@ -541,6 +747,31 @@ export default function App() {
                 onKeyDown={e => e.key === 'Enter' && addTask()} />
               <button className="wood primary" onClick={addTask}>PLANT</button>
             </div>
+            <div className="ai-row">
+              <button className={'wood' + (aiOpen ? ' primary' : '')} onClick={() => { SFX.click(); setAiOpen(o => !o); }}>AI QUESTS</button>
+              <span className="ai-hint">GROQ-POWERED IDEAS // FALLBACK OFFLINE</span>
+            </div>
+            {aiOpen && (
+              <div className="ai-box">
+                <div className="ai-input">
+                  <input value={aiGoal} maxLength={120} placeholder="WHAT DO YOU WANT TO GET DONE?"
+                    onChange={e => setAiGoal(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !aiLoading && genQuests()} />
+                  <button className="wood primary" onClick={genQuests} disabled={aiLoading}>{aiLoading ? '...' : 'GENERATE'}</button>
+                </div>
+                {aiQuests.length > 0 && (
+                  <div className="ai-results">
+                    {aiQuests.map((q, i) => (
+                      <div key={i} className="ai-item">
+                        <span className="ai-text">{q.text}<small>{q.category} / {q.priority} / {q.minutes} MIN</small></span>
+                        <button className="wood" onClick={() => acceptQuest(q)}>PLANT</button>
+                      </div>
+                    ))}
+                    <button className="wood primary" onClick={acceptAll}>PLANT ALL</button>
+                  </div>
+                )}
+              </div>
+            )}
             <ul className="task-list">
               {visibleTasks.map(t => editingId === t.id ? (
                 <li key={t.id} className="editing">
@@ -590,6 +821,54 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      <section className="panel meta-panel">
+        <div className="meta-col">
+          <h2>&#128200; ANALYTICS <span className="meta-sub">LAST 14 DAYS</span></h2>
+          <div className="chart">
+            {lastDays(stats.history, 14).map(d => (
+              <div key={d.key} className="chart-col" title={d.key + ' // ' + d.xp + ' XP // ' + d.q + ' quests // ' + d.m + ' focus min'}>
+                <div className="chart-bar" style={{ height: Math.max(2, Math.round(d.xp / Math.max(1, ...lastDays(stats.history, 14).map(x => x.xp)) * 64)) + 'px' }} />
+                <span className="chart-label">{d.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mini-stats meta-stats">
+            <div>QUESTS<b>{lastDays(stats.history, 14).reduce((n, d) => n + d.q, 0)}</b></div>
+            <div>XP<b>{lastDays(stats.history, 14).reduce((n, d) => n + d.xp, 0)}</b></div>
+            <div>FOCUS MIN<b>{lastDays(stats.history, 14).reduce((n, d) => n + d.m, 0)}</b></div>
+          </div>
+        </div>
+        <div className="meta-col">
+          <h2>&#127942; ACHIEVEMENTS <span className="meta-sub">{(stats.unlocked || []).length}/{ACHIEVEMENTS.length}</span></h2>
+          <div className="badges">
+            {ACHIEVEMENTS.map(ach => {
+              const on = (stats.unlocked || []).includes(ach.id);
+              return (
+                <span key={ach.id} className={'badge' + (on ? ' on' : '')} title={ach.name + ' — ' + ach.desc}>
+                  <span className="badge-icon">{ach.icon}</span>
+                  <b>{ach.name}</b>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel board-panel">
+        <h2>&#127760; LEADERBOARD <span className="meta-sub">WEEKLY XP</span>
+          <button className="wood board-refresh" onClick={refreshBoard}>REFRESH</button>
+        </h2>
+        {board.length === 0 && <div className="empty">NO CHALLENGERS YET // SIGN IN TO JOIN</div>}
+        {board.map((e, i) => (
+          <div key={e.username} className={'board-row' + (user && e.username === user.username ? ' me' : '')}>
+            <span className="board-rank">#{i + 1}</span>
+            <span className="board-name">{e.displayName || e.username}</span>
+            <span className="board-lv">LV {e.level}</span>
+            <b className="board-xp">{e.xp} XP</b>
+          </div>
+        ))}
+      </section>
 
       <section className="panel world-panel">
         <h2>&#127794; AVO VILLAGE // RPG WORLD</h2>
@@ -677,6 +956,42 @@ export default function App() {
       </section>
 
       <footer>MADE BY AARUTO (AARUTO_SOLANKI) // PRESS ENTER TO PLANT // LO-FI SPINS WHILE YOU FOCUS // WATER YOUR TASKS DAILY</footer>
+
+      {authOpen && (
+        <div className="modal-bg" onClick={() => setAuthOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setAuthOpen(false)}>&#10005;</button>
+            {user ? (
+              <>
+                <h3>ACCOUNT</h3>
+                <p className="modal-line">SIGNED IN AS <b>{user.username}</b></p>
+                <label className="modal-check">
+                  <input type="checkbox" checked={!(user.privacy && user.privacy.leaderboard === false)} onChange={togglePrivacy} />
+                  SHOW ME ON THE LEADERBOARD
+                </label>
+                <button className="wood" onClick={signOut}>SIGN OUT</button>
+              </>
+            ) : (
+              <>
+                <h3>{authMode === 'login' ? 'SIGN IN' : 'CREATE ACCOUNT'}</h3>
+                <input placeholder="USERNAME (a-z0-9_, 3-20)" value={authForm.username}
+                  onChange={e => setAuthForm(f => ({ ...f, username: e.target.value }))} />
+                <input type="password" placeholder="PASSWORD (8+ CHARS)" value={authForm.password}
+                  onChange={e => setAuthForm(f => ({ ...f, password: e.target.value }))} />
+                {authMode === 'signup' && (
+                  <input placeholder="DISPLAY NAME" value={authForm.displayName}
+                    onChange={e => setAuthForm(f => ({ ...f, displayName: e.target.value }))} />
+                )}
+                {authError && <p className="modal-err">{authError.toUpperCase().replace(/_/g, ' ')}</p>}
+                <button className="wood primary" onClick={submitAuth}>{authMode === 'login' ? 'SIGN IN' : 'CREATE'}</button>
+                <button className="link" onClick={() => setAuthMode(m => m === 'login' ? 'signup' : 'login')}>
+                  {authMode === 'login' ? 'NO ACCOUNT? CREATE ONE' : 'HAVE AN ACCOUNT? SIGN IN'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
