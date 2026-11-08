@@ -2,37 +2,47 @@
 export const BRANCHES = [
   { id: 'combat', name: 'COMBAT', icon: '⚔️' },
   { id: 'survival', name: 'SURVIVAL', icon: '🛡️' },
-  { id: 'fortune', name: 'FORTUNE', icon: '🍀' }
+  { id: 'fortune', name: 'FORTUNE', icon: '🍀' },
+  { id: 'magic', name: 'MAGIC', icon: '✨' }
 ];
 
 export const PERKS = [
   // COMBAT
   { id: 'c1', branch: 'combat', tier: 1, name: 'SHARP BLADE', lvl: 1, desc: '+1 attack damage', eff: { dmg: 1 } },
-  { id: 'c2', branch: 'combat', tier: 2, name: 'LONG REACH', lvl: 1, desc: '+18 px attack reach', eff: { reach: 18 } },
-  { id: 'c3', branch: 'combat', tier: 3, name: 'QUICK SWING', lvl: 2, req: 'c1', desc: '-80 ms attack cooldown', eff: { atkCd: 80 } },
-  { id: 'c4', branch: 'combat', tier: 4, name: 'CRITICAL', lvl: 3, req: 'c2', desc: '10% chance for double damage', eff: { crit: 0.1 } },
+  { id: 'c2', branch: 'combat', tier: 2, name: 'LONG REACH', lvl: 1, desc: '+18 px reach', eff: { reach: 18 } },
+  { id: 'c3', branch: 'combat', tier: 3, name: 'QUICK SWING', lvl: 2, req: 'c1', desc: '-80 ms attack cd', eff: { atkCd: 80 } },
+  { id: 'c4', branch: 'combat', tier: 4, name: 'CRITICAL', lvl: 3, req: 'c2', desc: '10% double damage', eff: { crit: 0.1 } },
   { id: 'c5', branch: 'combat', tier: 5, name: 'BRUTAL', lvl: 4, req: 'c1', desc: '+1 more attack damage', eff: { dmg: 1 } },
   { id: 'c6', branch: 'combat', tier: 6, name: 'HUNTER', lvl: 5, req: 'c4', desc: '+1 scrap per beast', eff: { killScrap: 1 } },
-  { id: 'c7', branch: 'combat', tier: 7, name: 'EXECUTIONER', lvl: 6, req: 'c4', desc: '+15% critical chance', eff: { crit: 0.15 } },
+  { id: 'c7', branch: 'combat', tier: 7, name: 'EXECUTIONER', lvl: 6, req: 'c4', desc: '+15% crit chance', eff: { crit: 0.15 } },
   { id: 'c8', branch: 'combat', tier: 8, name: 'MASTER', lvl: 8, req: 'c5', desc: '+2 attack damage', eff: { dmg: 2 } },
   // SURVIVAL
   { id: 's1', branch: 'survival', tier: 1, name: 'TOUGH', lvl: 1, desc: '+20 max HP', eff: { maxHp: 20 } },
   { id: 's2', branch: 'survival', tier: 2, name: 'ENDURANCE', lvl: 1, desc: '+25 max stamina', eff: { stamina: 25 } },
-  { id: 's3', branch: 'survival', tier: 3, name: 'FAST REGEN', lvl: 2, req: 's1', desc: '60% faster HP regen', eff: { regen: 0.6 } },
-  { id: 's4', branch: 'survival', tier: 4, name: 'ARMOR', lvl: 3, req: 's1', desc: 'Takes 15% less damage', eff: { armor: 0.15 } },
+  { id: 's3', branch: 'survival', tier: 3, name: 'FAST REGEN', lvl: 2, req: 's1', desc: '+60% HP regen', eff: { regen: 0.6 } },
+  { id: 's4', branch: 'survival', tier: 4, name: 'ARMOR', lvl: 3, req: 's1', desc: '-15% damage taken', eff: { armor: 0.15 } },
   { id: 's5', branch: 'survival', tier: 5, name: 'LONG SHIELD', lvl: 4, req: 's2', desc: '+0.8 s shield duration', eff: { shieldMs: 800 } },
   { id: 's6', branch: 'survival', tier: 6, name: 'BIG HEAL', lvl: 5, req: 's2', desc: 'Heal restores +20 HP', eff: { heal: 20 } },
-  { id: 's7', branch: 'survival', tier: 7, name: 'FORTRESS', lvl: 6, req: 's4', desc: 'Another 15% less damage', eff: { armor: 0.15 } },
+  { id: 's7', branch: 'survival', tier: 7, name: 'FORTRESS', lvl: 6, req: 's4', desc: '-15% more damage', eff: { armor: 0.15 } },
   { id: 's8', branch: 'survival', tier: 8, name: 'JUGGERNAUT', lvl: 8, req: 's4', desc: '+40 max HP', eff: { maxHp: 40 } },
   // FORTUNE
-  { id: 'f1', branch: 'fortune', tier: 1, name: 'GREED', lvl: 1, desc: 'Coins are worth +1 scrap', eff: { coinValue: 1 } },
-  { id: 'f2', branch: 'fortune', tier: 2, name: 'GEM HUNTER', lvl: 1, desc: 'Gems respawn 4 s faster', eff: { gemTime: 4 } },
+  { id: 'f1', branch: 'fortune', tier: 1, name: 'GREED', lvl: 1, desc: 'Coins +1 scrap', eff: { coinValue: 1 } },
+  { id: 'f2', branch: 'fortune', tier: 2, name: 'GEM HUNTER', lvl: 1, desc: 'Gems respawn -4 s', eff: { gemTime: 4 } },
   { id: 'f3', branch: 'fortune', tier: 3, name: 'SCAVENGER', lvl: 2, req: 'f1', desc: '+1 scrap per beast', eff: { killScrap: 1 } },
-  { id: 'f4', branch: 'fortune', tier: 4, name: 'BARGAIN', lvl: 3, req: 'f1', desc: 'Decor is 10% cheaper', eff: { decorDiscount: 0.1 } },
-  { id: 'f5', branch: 'fortune', tier: 5, name: 'MAGNET', lvl: 4, req: 'f1', desc: 'Coins worth +1 more scrap', eff: { coinValue: 1 } },
+  { id: 'f4', branch: 'fortune', tier: 4, name: 'BARGAIN', lvl: 3, req: 'f1', desc: 'Decor -10% cost', eff: { decorDiscount: 0.1 } },
+  { id: 'f5', branch: 'fortune', tier: 5, name: 'MAGNET', lvl: 4, req: 'f1', desc: 'Coins +1 more', eff: { coinValue: 1 } },
   { id: 'f6', branch: 'fortune', tier: 6, name: 'LUCKY', lvl: 5, req: 'f3', desc: '+2 more scrap per beast', eff: { killScrap: 2 } },
-  { id: 'f7', branch: 'fortune', tier: 7, name: 'TREASURE', lvl: 6, req: 'f2', desc: 'Gems respawn 6 s faster', eff: { gemTime: 6 } },
-  { id: 'f8', branch: 'fortune', tier: 8, name: 'TYCOON', lvl: 8, req: 'f4', desc: 'Decor is another 20% cheaper', eff: { decorDiscount: 0.2 } }
+  { id: 'f7', branch: 'fortune', tier: 7, name: 'TREASURE', lvl: 6, req: 'f2', desc: 'Gems respawn -6 s', eff: { gemTime: 6 } },
+  { id: 'f8', branch: 'fortune', tier: 8, name: 'TYCOON', lvl: 8, req: 'f4', desc: 'Decor -20% extra', eff: { decorDiscount: 0.2 } },
+  // MAGIC
+  { id: 'm1', branch: 'magic', tier: 1, name: 'MANA WELL', lvl: 1, desc: '+20 max stamina', eff: { stamina: 20 } },
+  { id: 'm2', branch: 'magic', tier: 2, name: 'SPELLBOLT', lvl: 1, desc: '+1 attack damage', eff: { dmg: 1 } },
+  { id: 'm3', branch: 'magic', tier: 3, name: 'AURA', lvl: 2, req: 'm1', desc: 'Shield +0.4 s', eff: { shieldMs: 400 } },
+  { id: 'm4', branch: 'magic', tier: 4, name: 'LEECH', lvl: 3, req: 'm2', desc: 'Heal 2 HP per hit', eff: { leech: 2 } },
+  { id: 'm5', branch: 'magic', tier: 5, name: 'BLINK', lvl: 4, req: 'm1', desc: 'Dash cd -0.4 s', eff: { dashCd: 400 } },
+  { id: 'm6', branch: 'magic', tier: 6, name: 'FROST', lvl: 5, req: 'm3', desc: 'Beasts -35% speed', eff: { slow: 0.35 } },
+  { id: 'm7', branch: 'magic', tier: 7, name: 'WARD', lvl: 6, req: 'm3', desc: 'Takes 10% less damage', eff: { armor: 0.1 } },
+  { id: 'm8', branch: 'magic', tier: 8, name: 'ARCHMAGE', lvl: 8, req: 'm2', desc: '+2 dmg, +10 stamina', eff: { dmg: 2, stamina: 10 } }
 ];
 
 export const PERK_BY_ID = Object.fromEntries(PERKS.map(p => [p.id, p]));
@@ -62,7 +72,8 @@ export function canBuy(perk, state) {
 export const BASE_MODS = {
   dmg: 0, reach: 0, atkCd: 0, crit: 0,
   maxHp: 0, stamina: 0, regen: 0, armor: 0, shieldMs: 0, heal: 0,
-  coinValue: 0, gemTime: 0, killScrap: 0, decorDiscount: 0
+  coinValue: 0, gemTime: 0, killScrap: 0, decorDiscount: 0,
+  leech: 0, dashCd: 0, slow: 0
 };
 
 export function computeMods(perkIds) {

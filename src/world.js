@@ -495,10 +495,11 @@ export function createWorld(canvas, opts) {
       onAbility && onAbility('jump');
       return true;
     }
-    if (name === 'dash' && lv >= 2 && t > player.dashUntil && player.stamina >= 18) {
+    if (name === 'dash' && lv >= 2 && t > player.dashUntil && t > (player.dashReadyAt || 0) && player.stamina >= 18) {
       player.dashX = player.dir;
       player.dashY = keys.arrowup || keys.w ? -1 : (keys.arrowdown || keys.s ? 1 : 0);
       player.dashUntil = t + 220;
+      player.dashReadyAt = t + Math.max(300, 1200 - (m.dashCd || 0));
       player.stamina -= 18; player.lastStaminaUse = t;
       invulnUntil = Math.max(invulnUntil, t + 240);
       onAbility && onAbility('dash');
@@ -538,6 +539,7 @@ export function createWorld(canvas, opts) {
         let dmg = (getWeaponDamage ? getWeaponDamage() : 1) + (m.dmg || 0);
         if (Math.random() < (m.crit || 0)) dmg *= 2;
         en.hp -= dmg;
+        if (m.leech) player.hp = Math.min(player.maxHp, player.hp + m.leech);
         en.flashUntil = t + 170;
         const push = d || 1;
         en.x += ((en.x - player.x) / push) * 28;
@@ -783,7 +785,8 @@ export function createWorld(canvas, opts) {
       const dist = Math.hypot(en.x - player.x, en.y - player.y);
       const homeDist = en.home ? Math.hypot(en.home.x - en.x, en.home.y - en.y) : 0;
       const aggroR = en.type.aggro || 190;
-      const spd = (en.type.speed || 0.1) * dt;
+      const slowF = (dist < 220 && M().slow) ? (1 - M().slow) : 1;
+      const spd = (en.type.speed || 0.1) * dt * slowF;
       en.timer -= dt;
 
       if (dist < aggroR && homeDist < 520 && t > player.deathUntil) {

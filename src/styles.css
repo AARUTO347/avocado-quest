@@ -624,3 +624,19 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .perk.owned i { color: #4d7a2f; }
 .perk:not(.ready):not(.owned) { opacity: .72; }
 @media (max-width: 720px) { .perk-branches { grid-template-columns: 1fr; } }
+
+/* ---------- perk diagram ---------- */
+.perk-svg { width: 100%; height: auto; display: block; }
+.perk-edge { stroke: #b9a482; stroke-width: 2; stroke-dasharray: 4 4; }
+.perk-edge.lit { stroke: #7ec850; stroke-dasharray: none; }
+.perk-node rect { fill: var(--cream); stroke: var(--wood-dark); stroke-width: 2; }
+.perk-node.ready rect { fill: #fff1bd; stroke: var(--leaf); stroke-width: 3; }
+.perk-node.owned rect { fill: #e6f3d9; stroke: var(--leaf); stroke-width: 3; }
+.perk-node.locked { opacity: .7; }
+.perk-node { cursor: pointer; }
+.perk-node:hover rect { filter: brightness(1.04); }
+.perk-svg-name { font-size: 7px; font-weight: bold; fill: var(--ink); letter-spacing: .4px; }
+.perk-svg-desc { font-size: 5px; fill: #8a6b4a; }
+.perk-svg-tag { font-size: 5px; fill: #a07a3c; letter-spacing: .5px; }
+.perk-node.owned .perk-svg-tag { fill: #4d7a2f; }
+.perk-node.ready .perk-svg-tag { fill: #7a5b1c; }

@@ -42,6 +42,42 @@ const localDate = () => {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 };
 
+function PerkDiagram({ branch, stats, world, onBuy }) {
+  const list = PERKS.filter(p => p.branch === branch.id);
+  const rowH = 62, nodeW = 140, nodeH = 42, top = 14;
+  const W = 236, H = top + list.length * rowH;
+  const pos = {};
+  list.forEach((p, i) => {
+    pos[p.id] = { x: i % 2 ? 158 : 78, y: top + 22 + i * rowH };
+  });
+  const st = perkState({ stats, world });
+  return (
+    <div className={'perk-branch ' + branch.id}>
+      <h3>{branch.icon} {branch.name}</h3>
+      <svg viewBox={'0 0 ' + W + ' ' + H} className="perk-svg" role="group" aria-label={branch.name + ' perks'}>
+        {list.map(p => p.req && pos[p.req] && (
+          <line key={'e' + p.id} x1={pos[p.req].x} y1={pos[p.req].y} x2={pos[p.id].x} y2={pos[p.id].y}
+            className={'perk-edge' + (st.owned.has(p.req) ? ' lit' : '')} />
+        ))}
+        {list.map(p => {
+          const owned = st.owned.has(p.id);
+          const chk = canBuy(p, { stats, world });
+          const tag = owned ? 'OWNED' : chk.ok ? '1 PT' : chk.reason === 'level' ? 'LV ' + p.lvl : chk.reason === 'req' ? 'LOCKED' : 'NO PTS';
+          const cls = 'perk-node' + (owned ? ' owned' : chk.ok ? ' ready' : ' locked');
+          return (
+            <g key={p.id} className={cls} onClick={() => onBuy(p)} tabIndex="0" role="button" aria-label={p.name + ' — ' + p.desc}>
+              <rect x={pos[p.id].x - nodeW / 2} y={pos[p.id].y - nodeH / 2} width={nodeW} height={nodeH} rx="5" />
+              <text x={pos[p.id].x} y={pos[p.id].y - 6} textAnchor="middle" className="perk-svg-name">{p.name}</text>
+              <text x={pos[p.id].x} y={pos[p.id].y + 4} textAnchor="middle" className="perk-svg-desc">{p.desc}</text>
+              <text x={pos[p.id].x} y={pos[p.id].y + 14} textAnchor="middle" className="perk-svg-tag">{tag}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export default function App() {
   const [ready, setReady] = useState(false);
   const [tasks, setTasks] = useState([]);
@@ -894,29 +930,7 @@ export default function App() {
         </h2>
         <div className="perk-branches">
           {BRANCHES.map(b => (
-            <div key={b.id} className={'perk-branch ' + b.id}>
-              <h3>{b.icon} {b.name}</h3>
-              {PERKS.filter(p => p.branch === b.id).map(p => {
-                const st = perkState({ stats, world });
-                const owned = st.owned.has(p.id);
-                const chk = canBuy(p, { stats, world });
-                const tag = owned ? 'OWNED'
-                  : chk.ok ? '1 PT'
-                    : chk.reason === 'level' ? 'LV ' + p.lvl
-                      : chk.reason === 'req' ? 'NEED ' + ((PERK_BY_ID[p.req] || {}).name || '')
-                        : 'NO POINTS';
-                return (
-                  <button key={p.id}
-                    className={'perk' + (owned ? ' owned' : '') + (chk.ok ? ' ready' : '')}
-                    onClick={() => buyPerk(p)}
-                    title={p.name + ' — ' + p.desc}>
-                    <b>{p.name}</b>
-                    <span>{p.desc}</span>
-                    <i>{tag}</i>
-                  </button>
-                );
-              })}
-            </div>
+            <PerkDiagram key={b.id} branch={b} stats={stats} world={world} onBuy={buyPerk} />
           ))}
         </div>
       </section>
