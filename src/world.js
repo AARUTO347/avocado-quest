@@ -373,7 +373,7 @@ export function decorThumbnails() {
 
 export function createWorld(canvas, opts) {
   const ctx = canvas.getContext('2d');
-  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage, onDeath, onRespawn, onAbility, getLevel } = opts;
+  const { getDecor, onCollect, onPlace, getPlacing, onDamage, onSwing, onBop, getBopped, onWater, getMap, getWeaponDamage, onDeath, onRespawn, onAbility, getLevel, getMods } = opts;
 
   const player = {
   x: WORLD_W / 2, y: WORLD_H - 260, dir: 1, moving: false,
@@ -505,13 +505,13 @@ export function createWorld(canvas, opts) {
       return true;
     }
     if (name === 'shield' && lv >= 4 && t > player.shieldUntil && player.stamina >= 25) {
-      player.shieldUntil = t + 1600;
+      player.shieldUntil = t + 1600 + (m.shieldMs || 0);
       player.stamina -= 25; player.lastStaminaUse = t;
       onAbility && onAbility('shield');
       return true;
     }
     if (name === 'heal' && lv >= 6 && t > player.healReadyAt && player.stamina >= 40 && player.hp < player.maxHp) {
-      player.hp = Math.min(player.maxHp, player.hp + 35);
+      player.hp = Math.min(player.maxHp, player.hp + 35 + (m.heal || 0));
       player.healReadyAt = t + 9000;
       player.stamina -= 40; player.lastStaminaUse = t;
       onAbility && onAbility('heal');
@@ -521,18 +521,23 @@ export function createWorld(canvas, opts) {
     return false;
   }
 
+  const M = () => (getMods ? getMods() : {}) || {};
+
   function attack() {
     if (t < attackCd) return;
-    attackCd = t + 450;
+    const m = M();
+    attackCd = t + Math.max(180, 450 - (m.atkCd || 0));
     attackUntil = t + 260;
     onSwing && onSwing();
     let hit = false;
     for (const en of enemies) {
       if (!en.alive) continue;
       const d = Math.hypot(en.x - player.x, en.y - player.y);
-      if (d < 95) {
+      if (d < 95 + (m.reach || 0)) {
         hit = true;
-        en.hp -= (getWeaponDamage ? getWeaponDamage() : 1);
+        let dmg = (getWeaponDamage ? getWeaponDamage() : 1) + (m.dmg || 0);
+        if (Math.random() < (m.crit || 0)) dmg *= 2;
+        en.hp -= dmg;
         en.flashUntil = t + 170;
         const push = d || 1;
         en.x += ((en.x - player.x) / push) * 28;
@@ -541,7 +546,7 @@ export function createWorld(canvas, opts) {
           en.alive = false;
           en.respawnAt = t + 6500;
           avo.hopUntil = t + 400;
-          onCollect && onCollect(en.reward);
+          onCollect && onCollect(en.reward + (m.killScrap || 0));
           onBop && onBop();
         }
       }
@@ -823,7 +828,8 @@ export function createWorld(canvas, opts) {
         if (d2 < 60 && t > invulnUntil && t > player.jumpUntil && t > player.shieldUntil) {
           invulnUntil = t + 1200;
           hurtUntil = t + 500;
-          player.hp = Math.max(0, player.hp - (en.damage || 2) * 8);
+          const raw = (en.damage || 2) * 8;
+          player.hp = Math.max(0, player.hp - Math.round(raw * (1 - Math.min(0.6, m.armor || 0))));
           player.lastHurt = t;
           onDamage && onDamage(en.damage || 2);
           if (player.hp <= 0) {
@@ -894,8 +900,12 @@ export function createWorld(canvas, opts) {
         if (dy && isLand(player.x, ny)) player.y = ny;
       }
     }
+    const mmFrame = M();
+    player.maxHp = 100 + (mmFrame.maxHp || 0);
+    player.maxStamina = 100 + (mmFrame.stamina || 0);
+    if (player.hp > player.maxHp) player.hp = player.maxHp;
     if (t - player.lastStaminaUse > 1000 && player.stamina < player.maxStamina) {
-      player.stamina = Math.min(player.maxStamina, player.stamina + 0.009 * dt * 2);
+      player.stamina = Math.min(player.maxStamina, player.stamina + 0.009 * dt * 2 * (1 + (mmFrame.regen || 0)));
     }
     if (player.deathUntil && t > player.deathUntil) {
       player.deathUntil = 0;
@@ -919,13 +929,13 @@ export function createWorld(canvas, opts) {
     for (const c of coins) {
       if (Math.abs(c.x - player.x) < 30 && Math.abs(c.y - player.y) < 34) {
         avo.hopUntil = t + 350;
-        onCollect && onCollect(1);
+        onCollect && onCollect(1 + (M().coinValue || 0));
         spawnCoin(c);
       }
     }
     if (gem.ready && Math.abs(gem.x - player.x) < 34 && Math.abs(gem.y - player.y) < 40) {
       gem.ready = false;
-      gem.respawnAt = t + 18000;
+      gem.respawnAt = t + Math.max(6000, 18000 - (M().gemTime || 0) * 1000);
       avo.hopUntil = t + 450;
       onCollect && onCollect(5);
     }

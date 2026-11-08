@@ -35,7 +35,7 @@ const DEFAULT_STATE = {
   volume: 80,
   clockAlarm: { time: '18:00', enabled: false },
   theme: 'meadow',
-  world: { decor: [], bopped: 0, weapon: null, map: { d: 'southgate', c: 'day' } }
+  world: { decor: [], bopped: 0, perks: [], weapon: null, map: { d: 'southgate', c: 'day' } }
 };
 
 function readState() {
@@ -123,6 +123,7 @@ app.put('/api/state', (req, res) => {
       ? {
         decor: Array.isArray(body.world.decor) ? body.world.decor.slice(0, 80) : [],
         bopped: Math.max(0, Math.min(99999, Number(body.world.bopped) || 0)),
+        perks: Array.isArray(body.world.perks) ? body.world.perks.filter(x => typeof x === 'string').slice(0, 40) : [],
         weapon: typeof body.world.weapon === 'string' ? body.world.weapon.slice(0, 40) : null,
         map: {
           d: typeof (body.world.map && body.world.map.d) === 'string' ? body.world.map.d.slice(0, 24) : 'southgate',

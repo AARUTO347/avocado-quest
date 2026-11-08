@@ -4,6 +4,7 @@ import { stageFor, STAGES } from './sprites.js';
 import { SFX, Lofi, setSoundEnabled, setVolume, unlockAudio } from './audio.js';
 import { loadState, saveState } from './store.js';
 import { ACHIEVEMENTS, checkAchievements, bumpHistory, lastDays } from './progression.js';
+import { BRANCHES, PERKS, PERK_BY_ID, perkState, canBuy, computeMods } from './perks.js';
 import { THEMES, themeById } from './themes.js';
 import {
   createWorld, DECOR, ENEMY_TYPES, decorThumbnails, enemyThumbnails,
@@ -28,6 +29,7 @@ const normWorld = w => ({
   visited: Array.isArray(w && w.visited) ? w.visited.slice(-60) : [],
   bopped: Number(w && w.bopped) || 0,
   weapon: typeof (w && w.weapon) === 'string' ? w.weapon : null,
+  perks: Array.isArray(w && w.perks) ? w.perks.slice(0, 40) : [],
   map: { d: (w && w.map && w.map.d) || 'southgate', c: (w && w.map && w.map.c) || 'day', w: (w && w.map && w.map.w) || 'farm' }
 });
 const normTask = t => ({
@@ -60,6 +62,7 @@ export default function App() {
   const [board, setBoard] = useState([]);
   const tabId = useRef(Math.random().toString(36).slice(2));
   const channelRef = useRef(null);
+  const modsRef = useRef({});
   const [durations, setDurations] = useState({ work: 25, break: 5, long: 15 });
   const [volume, setVolumeState] = useState(80);
   const [clockAlarm, setClockAlarm] = useState({ time: '18:00', enabled: false });
@@ -93,6 +96,8 @@ export default function App() {
   const statsRef = useRef({ focusSessions: 0 });
   const sceneState = useRef({ working: false, hop: false, timerText: fmt(25 * 60) });
 
+  const mods = computeMods(world.perks);
+  modsRef.current = mods;
   statsRef.current = stats;
   scrapRef.current = stats.scrap;
   worldDataRef.current = world;
@@ -234,12 +239,13 @@ export default function App() {
   const placeDecor = (id, x, y) => {
     const item = DECOR.find(d => d.id === id);
     if (!item) return;
-    if (statsRef.current.scrap < item.cost) {
+    const cost = Math.max(1, Math.round(item.cost * (1 - (modsRef.current.decorDiscount || 0))));
+    if (statsRef.current.scrap < cost) {
       SFX.error();
-      say('NOT ENOUGH SCRAP FOR ' + item.name + '... COLLECT MORE COINS IN THE VILLAGE!');
+      say('NOT ENOUGH SCRAP FOR ' + item.name + ' (' + cost + ')... COLLECT MORE COINS IN THE VILLAGE!');
       return;
     }
-    setStats(s => ({ ...s, scrap: s.scrap - item.cost }));
+    setStats(s => ({ ...s, scrap: s.scrap - cost }));
     setWorld(w => ({ ...w, decor: [...w.decor, { id, x, y }].slice(-80) }));
     SFX.add();
     say(item.name + ' PLACED! THE VILLAGE IS GROWING!');
@@ -252,6 +258,21 @@ export default function App() {
     setWorld(x => ({ ...x, weapon: w.id }));
     SFX.done();
     say(w.name + ' EQUIPPED! ATTACK POWER +' + w.dmg + '!');
+  };
+
+  const buyPerk = p => {
+    const chk = canBuy(p, { stats, world });
+    if (!chk.ok) {
+      SFX.error();
+      say(chk.reason === 'level' ? 'NEED LEVEL ' + p.lvl + ' FOR ' + p.name + '.'
+        : chk.reason === 'req' ? 'UNLOCK ' + ((PERK_BY_ID[p.req] || {}).name || '') + ' FIRST.'
+        : chk.reason === 'points' ? 'NO PERK POINTS YET. LEVEL UP OR BOP BEASTS!'
+        : p.name + ' ALREADY OWNED.');
+      return;
+    }
+    setWorld(w => ({ ...w, perks: [...(w.perks || []), p.id] }));
+    SFX.levelup();
+    say(p.name + ' UNLOCKED! ' + p.desc + '.');
   };
 
   const pickMap = (d, c, w) => {
@@ -285,6 +306,7 @@ export default function App() {
         onDamage: hurtScrap,
         onSwing: () => SFX.swing(),
         getLevel: () => statsRef.current.level,
+        getMods: () => modsRef.current,
         onAbility: name => {
           if (name === 'jump') SFX.hop();
           else if (name === 'dash') SFX.click();
@@ -863,6 +885,39 @@ export default function App() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      <section className="panel perk-panel">
+        <h2>&#127795; PERK TREE
+          <span className="meta-sub">POINTS {(perkState({ stats, world })).available} / {(perkState({ stats, world })).total} · LEVEL {stats.level}</span>
+        </h2>
+        <div className="perk-branches">
+          {BRANCHES.map(b => (
+            <div key={b.id} className={'perk-branch ' + b.id}>
+              <h3>{b.icon} {b.name}</h3>
+              {PERKS.filter(p => p.branch === b.id).map(p => {
+                const st = perkState({ stats, world });
+                const owned = st.owned.has(p.id);
+                const chk = canBuy(p, { stats, world });
+                const tag = owned ? 'OWNED'
+                  : chk.ok ? '1 PT'
+                    : chk.reason === 'level' ? 'LV ' + p.lvl
+                      : chk.reason === 'req' ? 'NEED ' + ((PERK_BY_ID[p.req] || {}).name || '')
+                        : 'NO POINTS';
+                return (
+                  <button key={p.id}
+                    className={'perk' + (owned ? ' owned' : '') + (chk.ok ? ' ready' : '')}
+                    onClick={() => buyPerk(p)}
+                    title={p.name + ' — ' + p.desc}>
+                    <b>{p.name}</b>
+                    <span>{p.desc}</span>
+                    <i>{tag}</i>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </section>
 
