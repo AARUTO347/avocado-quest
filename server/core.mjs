@@ -342,7 +342,7 @@ export async function generateQuests({ goal, count } = {}) {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+        model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
         temperature: 0.7,
         max_tokens: 500,
         response_format: { type: 'json_object' },
@@ -364,7 +364,7 @@ export async function generateQuests({ goal, count } = {}) {
     })).filter(q => q.text);
     if (!quests.length) throw new Error('empty');
     return { source: 'groq', quests };
-  } catch {
-    return { source: 'fallback', quests: fallbackQuests(goal, n) };
+  } catch (err) {
+    return { source: 'fallback', quests: fallbackQuests(goal, n), error: String(err && err.message || err) };
   }
 }

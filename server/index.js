@@ -1,4 +1,17 @@
 import express from 'express';
+import fsEnv from 'node:fs';
+import pathEnv from 'node:path';
+
+// Minimal .env loader: keeps server secrets out of source and git.
+try {
+  const envPath = pathEnv.join(process.cwd(), '.env');
+  if (fsEnv.existsSync(envPath)) {
+    for (const line of fsEnv.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+    }
+  }
+} catch {}
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -127,6 +140,7 @@ app.post('/api/v2/ai/quests', async (req, res) => {
   try { res.json(await core.generateQuests(req.body || {})); }
   catch { res.status(500).json({ error: 'ai_failed' }); }
 });
+
 
 /* ---------- v2: auth ---------- */
 app.post('/api/v2/auth/signup', async (req, res) => {

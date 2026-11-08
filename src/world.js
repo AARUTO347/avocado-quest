@@ -16,6 +16,19 @@ import natureUrl from './assets/world/nature-sheet.jpg';
 import seasonalUrl from './assets/world/seasonal-tileset.jpg';
 import starlitUrl from './assets/world/starlit-farm-icons.jpg';
 import bedsUrl from './assets/world/wood-garden-beds.jpg';
+import soldierIdleUrl from './assets/world/soldier_idle.png';
+import soldierWalkUrl from './assets/world/soldier_walk.png';
+import soldierAttackUrl from './assets/world/soldier_attack.png';
+import soldierHurtUrl from './assets/world/soldier_hurt.png';
+import orcIdleUrl from './assets/world/orc_idle.png';
+import orcWalkUrl from './assets/world/orc_walk.png';
+import orcAttackUrl from './assets/world/orc_attack.png';
+import chickenUrl from './assets/world/chicken.png';
+import cowAnimUrl from './assets/world/cow_anim.png';
+import tsCastleUrl from './assets/world/ts_castle.png';
+import tsHouseUrl from './assets/world/ts_house.png';
+import tsTowerUrl from './assets/world/ts_tower.png';
+import tsMonasteryUrl from './assets/world/ts_monastery.png';
 import { STAGES, PAL } from './sprites.js';
 
 export const VIEW_W = 960;
@@ -62,13 +75,17 @@ export const DECOR = [
   { id: 'cactus', name: 'CACTUS POT', cost: 5, sheet: 'pots', rect: potsRect(0, 1), w: 38, h: 56 },
   { id: 'rose', name: 'ROSE POT', cost: 6, sheet: 'pots', rect: potsRect(2, 1), w: 34, h: 58 },
   { id: 'hangplant', name: 'HANGING PLANT', cost: 8, sheet: 'pots', rect: potsRect(3, 0), w: 44, h: 58 },
-  { id: 'terrapot', name: 'TERRACOTTA POT', cost: 4, sheet: 'pots2', rect: [0, 0, 72, 110], w: 26, h: 40 }
+  { id: 'succulent', name: 'SUCCULENT', cost: 4, sheet: 'pots', rect: potsRect(0, 2), w: 34, h: 52 },
+  { id: 'castle', name: 'STONE KEEP', cost: 34, sheet: 'ts_castle', rect: [0, 0, 320, 256], w: 118, h: 94 },
+  { id: 'manor', name: 'MANOR', cost: 20, sheet: 'ts_house', rect: [0, 0, 128, 192], w: 66, h: 98 },
+  { id: 'tower', name: 'WATCHTOWER', cost: 26, sheet: 'ts_tower', rect: [0, 0, 128, 256], w: 56, h: 112 },
+  { id: 'monastery', name: 'MONASTERY', cost: 30, sheet: 'ts_monastery', rect: [0, 0, 192, 320], w: 74, h: 122 }
 ];
 
 export const ENEMY_TYPES = [
   { name: 'SWAMP OGRE', sheet: 'monsters', rects: [[0, 0, 169, 170], [169, 0, 169, 170]], h: 62, hp: 2, tier: 1, reward: 2, damage: 2 },
   { name: 'SKULL BEAST', sheet: 'monsters', rects: [[0, 640, 169, 170], [169, 640, 169, 170]], h: 60, hp: 2, tier: 2, reward: 3, damage: 2 },
-  { name: 'ORC', sheet: 'orc', rects: [[152, 40, 104, 84]], h: 62, hp: 1, tier: 1, reward: 2, damage: 2 },
+  { name: 'ORC', anim: { idle: 'orc_idle', walk: 'orc_walk', attack: 'orc_attack', cell: 100, frames: 6, walkFrames: 8 }, h: 140, hp: 1, tier: 1, reward: 2, damage: 2 },
   { name: 'OGRE BRUTE', sheet: 'monsters', rects: [[338, 0, 169, 170], [169, 0, 169, 170]], h: 66, hp: 3, tier: 3, reward: 5, damage: 3 },
   { name: 'GHOST', sheet: 'animals', rects: [[420, 460, 90, 120]], h: 54, hp: 1, tier: 1, reward: 2, damage: 2 },
   { name: 'ZOMBIE', sheet: 'animals', rects: [[500, 470, 90, 120]], h: 56, hp: 2, tier: 2, reward: 3, damage: 2 },
@@ -77,9 +94,9 @@ export const ENEMY_TYPES = [
 ];
 
 const NPC_TYPES = [
-  { name: 'COW', sheet: 'animals', rect: [270, 555, 160, 140], h: 52 },
+  { name: 'COW', anim: { sheet: 'cow_anim', cellW: 32, cellH: 64, frames: 3 }, h: 44 },
   { name: 'BULL', sheet: 'animals', rect: [440, 600, 160, 120], h: 50 },
-  { name: 'RABBIT', sheet: 'animals', rect: [370, 490, 85, 100], h: 30 },
+  { name: 'CHICKEN', anim: { sheet: 'chicken', cellW: 32, cellH: 32, frames: 2 }, h: 22 },
   { name: 'MUSHROOM', sheet: 'animals', rect: [280, 470, 90, 100], h: 34 }
 ];
 
@@ -186,8 +203,15 @@ function loadAssets() {
       loadImage(mapUrl), loadImage(propsUrl), loadImage(potsUrl), loadImage(pots2Url), loadImage(mcUrl),
       loadImage(animalsUrl), loadImage(monstersUrl), loadImage(orcUrl), loadImage(rocksUrl),
       loadImage(weaponsUrl), loadImage(promoUrl), loadImage(hudUrl), loadImage(isoUrl),
-      loadImage(natureUrl), loadImage(seasonalUrl), loadImage(starlitUrl), loadImage(bedsUrl)
-    ]).then(([map, props, pots, pots2, mc, animals, monsters, orc, rocks, weapons, promo, hud, iso, nature, seasonal, starlit, beds]) => ({
+      loadImage(natureUrl), loadImage(seasonalUrl), loadImage(starlitUrl), loadImage(bedsUrl),
+      loadImage(soldierIdleUrl), loadImage(soldierWalkUrl), loadImage(soldierAttackUrl), loadImage(soldierHurtUrl),
+      loadImage(orcIdleUrl), loadImage(orcWalkUrl), loadImage(orcAttackUrl), loadImage(chickenUrl), loadImage(cowAnimUrl),
+      loadImage(tsCastleUrl), loadImage(tsHouseUrl), loadImage(tsTowerUrl), loadImage(tsMonasteryUrl)
+    ]).then(([map, props, pots, pots2, mc, animals, monsters, orc, rocks, weapons, promo, hud, iso, nature, seasonal, starlit, beds,
+      soldierIdle, soldierWalk, soldierAttack, soldierHurt, orcIdle, orcWalk, orcAttack, chicken, cowAnim,
+      tsCastle, tsHouse, tsTower, tsMonastery]) => ({
+      map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
+      anim: { soldierIdle, soldierWalk, soldierAttack, soldierHurt, orc_idle: orcIdle, orc_walk: orcWalk, orc_attack: orcAttack, chicken, cow_anim: cowAnim },
       map, hud, avo: makeAvoSprite(), land: buildLandMask(map), raw: { weapons },
       sheets: {
         props: keyImage(props, 36),
@@ -204,7 +228,11 @@ function loadAssets() {
         nature: keyImage(nature, 24, [[255, 255, 255]], { diag: true }),
         seasonal: keyImage(seasonal, 24),
         icons: keyImage(starlit, 26, [[255, 255, 255], [204, 204, 204]], { diag: true }),
-        beds: keyImage(beds, 24)
+        beds: keyImage(beds, 24),
+        ts_castle: tsCastle,
+        ts_house: tsHouse,
+        ts_tower: tsTower,
+        ts_monastery: tsMonastery
       }
     }));
   }
@@ -488,6 +516,17 @@ export function createWorld(canvas, opts) {
     ctx.restore();
   }
 
+  function drawAnim(sheet, cellW, frames, fps, phase, x, y, h, dir) {
+    const col = Math.floor(phase * fps) % frames;
+    const sc = h / sheet.height;
+    const dw = cellW * sc;
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    if (dir < 0) ctx.scale(-1, 1);
+    ctx.drawImage(sheet, col * cellW, 0, cellW, sheet.height, -dw / 2, -h, dw, h);
+    ctx.restore();
+  }
+
   function drawDecor(item, d) {
     if (!ready) return;
     const x = d.x - camX, y = d.y - camY;
@@ -507,12 +546,17 @@ export function createWorld(canvas, opts) {
       ctx.fillStyle = '#4a3520'; ctx.fillRect(x - 10, y - 46, 20, 44);
       return;
     }
-    const mc = assets.sheets.mc;
-    const cw = mc.width / 5, ch = mc.height / 4;
     ctx.imageSmoothingEnabled = false;
-    const row = player.moving ? 1 : 0;
-    const col = Math.floor(t / (player.moving ? 120 : 380)) % 5;
-    drawSprite(mc, [col * cw, row * ch, cw, ch], x, y + bob, 76, player.dir);
+    const A = assets.anim;
+    if (t < attackUntil) {
+      drawAnim(A.soldierAttack, 100, 6, 0.024, t, x, y + bob, 160, player.dir);
+    } else if (t < hurtUntil) {
+      drawAnim(A.soldierHurt, 100, 4, 0.018, t, x, y + bob, 160, player.dir);
+    } else if (player.moving) {
+      drawAnim(A.soldierWalk, 100, 8, 0.018, t, x, y + bob, 160, player.dir);
+    } else {
+      drawAnim(A.soldierIdle, 100, 6, 0.011, t, x, y + bob, 160, player.dir);
+    }
   }
 
   function drawAvo() {
@@ -537,11 +581,18 @@ export function createWorld(canvas, opts) {
     if (y < -100 || y > VIEW_H + 100 || x < -120 || x > VIEW_W + 120) return;
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath(); ctx.ellipse(x, y - 2, 16, 5, 0, 0, 6.29); ctx.fill();
-    const rects = en.type.rects;
-    const rect = rects[(Math.floor(t / 260) + en.frame) % rects.length];
     const dir = en.vx < 0 ? -1 : 1;
     ctx.imageSmoothingEnabled = false;
-    drawSprite(assets.sheets[en.type.sheet], rect, x, y, en.type.h, dir);
+    if (en.type.anim) {
+      const A = assets.anim, cfg = en.type.anim;
+      if (t < en.attackUntil) drawAnim(A[cfg.attack], cfg.cell, cfg.frames, 0.02, t, x, y, en.type.h, dir);
+      else if (en.frame === 1) drawAnim(A[cfg.walk], cfg.cell, cfg.walkFrames, 0.016, t, x, y, en.type.h, dir);
+      else drawAnim(A[cfg.idle], cfg.cell, cfg.frames, 0.01, t, x, y, en.type.h, dir);
+    } else {
+      const rects = en.type.rects;
+      const rect = rects[(Math.floor(t / 260) + en.frame) % rects.length];
+      drawSprite(assets.sheets[en.type.sheet], rect, x, y, en.type.h, dir);
+    }
     if (t < en.flashUntil) {
       ctx.fillStyle = 'rgba(255,255,255,0.45)';
       ctx.fillRect(x - en.type.h * 0.35, y - en.type.h, en.type.h * 0.7, en.type.h);
@@ -564,11 +615,17 @@ export function createWorld(canvas, opts) {
   function drawNpc(npc) {
     const x = npc.x - camX, y = npc.y - camY;
     if (y < -90 || y > VIEW_H + 90 || x < -120 || x > VIEW_W + 120) return;
-    const hop = npc.type.name === 'RABBIT' ? Math.abs(Math.sin(t / 260 + npc.phase)) * -5 : 0;
+    const hop = npc.type.name === 'CHICKEN' ? Math.abs(Math.sin(t / 240 + npc.phase)) * -3 : 0;
     ctx.fillStyle = 'rgba(0,0,0,0.16)';
     ctx.beginPath(); ctx.ellipse(x, y - 1, 14, 4, 0, 0, 6.29); ctx.fill();
     ctx.imageSmoothingEnabled = false;
-    drawSprite(assets.sheets[npc.type.sheet], npc.type.rect, x, y + hop, npc.type.h, npc.vx < 0 ? -1 : 1);
+    const dir = npc.vx < 0 ? -1 : 1;
+    if (npc.type.anim) {
+      const cfg = npc.type.anim;
+      drawAnim(assets.anim[cfg.sheet], cfg.cellW, cfg.frames, 0.012, t + npc.phase * 100, x, y + hop, npc.type.h, dir);
+    } else {
+      drawSprite(assets.sheets[npc.type.sheet], npc.type.rect, x, y + hop, npc.type.h, dir);
+    }
   }
 
   function drawCoin(c) {
@@ -625,6 +682,7 @@ export function createWorld(canvas, opts) {
       if (dist < 34 && t > invulnUntil) {
         invulnUntil = t + 1300;
         hurtUntil = t + 500;
+        en.attackUntil = t + 420;
         onDamage && onDamage(en.damage || 2);
         const push = dist || 1;
         const kx = clamp(player.x + ((player.x - en.x) / push) * 46, 24, WORLD_W - 24);
