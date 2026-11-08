@@ -109,15 +109,15 @@ export const DECOR = [
 ];
 
 export const ENEMY_TYPES = [
-  { name: 'SWAMP OGRE', sheet: 'monsters', rects: [[0, 0, 169, 170], [169, 0, 169, 170]], h: 62, hp: 2, tier: 1, reward: 2, damage: 2 },
-  { name: 'SKULL BEAST', sheet: 'monsters', rects: [[0, 640, 169, 170], [169, 640, 169, 170]], h: 60, hp: 2, tier: 2, reward: 3, damage: 2 },
-  { name: 'ORC', anim: { idle: 'orc_idle', walk: 'orc_walk', attack: 'orc_attack', cell: 100, frames: 6, walkFrames: 8 }, h: 140, hp: 1, tier: 1, reward: 2, damage: 2 },
-  { name: 'OGRE BRUTE', sheet: 'monsters', rects: [[338, 0, 169, 170], [169, 0, 169, 170]], h: 66, hp: 3, tier: 3, reward: 5, damage: 3 },
-  { name: 'GHOST', sheet: 'animals', rects: [[420, 460, 90, 120]], h: 54, hp: 1, tier: 1, reward: 2, damage: 2 },
-  { name: 'ZOMBIE', sheet: 'animals', rects: [[500, 470, 90, 120]], h: 56, hp: 2, tier: 2, reward: 3, damage: 2 },
-  { name: 'WILD BOAR', sheet: 'animals', rects: [[580, 420, 160, 130]], h: 44, hp: 1, tier: 1, reward: 2, damage: 2 },
-  { name: 'ORANGE BRUTE', sheet: 'animals', rects: [[615, 285, 125, 125]], h: 62, hp: 3, tier: 3, reward: 5, damage: 3 },
-  { name: 'BANDIT', anim: { idle: 'lancer_idle', walk: 'lancer_run', attack: 'lancer_attack', cell: 320, frames: 12, walkFrames: 6 }, h: 96, hp: 2, tier: 2, reward: 3, damage: 3 }
+  { name: 'SWAMP OGRE', sheet: 'monsters', rects: [[0, 0, 169, 170], [169, 0, 169, 170]], h: 62, hp: 2, tier: 1, reward: 2, damage: 2, speed: 0.085, aggro: 170 },
+  { name: 'SKULL BEAST', sheet: 'monsters', rects: [[0, 640, 169, 170], [169, 640, 169, 170]], h: 60, hp: 2, tier: 2, reward: 3, damage: 2, speed: 0.1, aggro: 200 },
+  { name: 'ORC', anim: { idle: 'orc_idle', walk: 'orc_walk', attack: 'orc_attack', cell: 100, frames: 6, walkFrames: 8 }, h: 140, hp: 1, tier: 1, reward: 2, damage: 2, speed: 0.11, aggro: 210 },
+  { name: 'OGRE BRUTE', sheet: 'monsters', rects: [[338, 0, 169, 170], [169, 0, 169, 170]], h: 66, hp: 3, tier: 3, reward: 5, damage: 3, speed: 0.08, aggro: 190 },
+  { name: 'GHOST', sheet: 'animals', rects: [[420, 460, 90, 120]], h: 54, hp: 1, tier: 1, reward: 2, damage: 2, speed: 0.09, aggro: 230 },
+  { name: 'ZOMBIE', sheet: 'animals', rects: [[500, 470, 90, 120]], h: 56, hp: 2, tier: 2, reward: 3, damage: 2, speed: 0.07, aggro: 180 },
+  { name: 'WILD BOAR', sheet: 'animals', rects: [[580, 420, 160, 130]], h: 44, hp: 1, tier: 1, reward: 2, damage: 2, speed: 0.13, aggro: 240 },
+  { name: 'ORANGE BRUTE', sheet: 'animals', rects: [[615, 285, 125, 125]], h: 62, hp: 3, tier: 3, reward: 5, damage: 3, speed: 0.09, aggro: 190 },
+  { name: 'BANDIT', anim: { idle: 'lancer_idle', walk: 'lancer_run', attack: 'lancer_attack', cell: 320, frames: 12, walkFrames: 6 }, h: 96, hp: 2, tier: 2, reward: 3, damage: 3, speed: 0.12, aggro: 260 }
 ];
 
 const NPC_TYPES = [
@@ -158,15 +158,15 @@ export const WEAPONS = WEAPON_BASES.flatMap(b => WEAPON_TIERS.map((t, i) => ({
 })));
 
 export const DISTRICTS = [
-  { id: 'southgate', name: 'SOUTH GATE', x: 600, y: 1900, danger: 0 },
-  { id: 'bridge', name: 'STONE BRIDGE', x: 600, y: 1500, danger: 0 },
-  { id: 'market', name: 'MARKET SQUARE', x: 300, y: 1300, danger: 1 },
-  { id: 'westwoods', name: 'WEST WOODS', x: 160, y: 950, danger: 1 },
-  { id: 'eastfields', name: 'EAST FIELDS', x: 1020, y: 1100, danger: 1 },
-  { id: 'riverbank', name: 'RIVERBANK', x: 780, y: 1650, danger: 0 },
-  { id: 'mill', name: 'OLD MILL', x: 260, y: 620, danger: 2 },
-  { id: 'northforest', name: 'NORTH FOREST', x: 600, y: 300, danger: 2 },
-  { id: 'hilltop', name: 'HILLTOP', x: 920, y: 520, danger: 3 },
+  { id: 'southgate', name: 'SOUTH GATE', x: 600, y: 1900, danger: 0, mobs: ['GHOST', 'WILD BOAR'] },
+  { id: 'bridge', name: 'STONE BRIDGE', x: 600, y: 1500, danger: 0, mobs: ['ORC', 'GHOST'] },
+  { id: 'market', name: 'MARKET SQUARE', x: 300, y: 1300, danger: 1, mobs: ['ORC', 'ZOMBIE'] },
+  { id: 'westwoods', name: 'WEST WOODS', x: 160, y: 950, danger: 1, mobs: ['WILD BOAR', 'SKULL BEAST'] },
+  { id: 'eastfields', name: 'EAST FIELDS', x: 1020, y: 1100, danger: 1, mobs: ['ORC', 'GHOST'] },
+  { id: 'riverbank', name: 'RIVERBANK', x: 780, y: 1650, danger: 0, mobs: ['GHOST', 'ZOMBIE'] },
+  { id: 'mill', name: 'OLD MILL', x: 260, y: 620, danger: 2, mobs: ['SKULL BEAST', 'ZOMBIE'] },
+  { id: 'northforest', name: 'NORTH FOREST', x: 600, y: 300, danger: 2, mobs: ['WILD BOAR', 'SKULL BEAST'] },
+  { id: 'hilltop', name: 'HILLTOP', x: 920, y: 520, danger: 3, mobs: ['OGRE BRUTE', 'ORANGE BRUTE', 'BANDIT'] },
   { id: 'oldroad', name: 'OLD ROAD', x: 450, y: 1000, danger: 2 }
 ];
 
@@ -442,9 +442,14 @@ export function createWorld(canvas, opts) {
     const maxTier = Math.max(1, Math.ceil(lv / 2));
     const pool = ENEMY_TYPES.filter(t => t.tier <= maxTier);
     const strong = pool.filter(t => t.tier === maxTier);
-    const type = (Math.random() < 0.45 && strong.length)
-      ? strong[Math.floor(Math.random() * strong.length)]
-      : (pool[Math.floor(Math.random() * pool.length)] || ENEMY_TYPES[0]);
+    const msel = (getMap ? getMap() : null) || {};
+    const dist = DISTRICTS.find(x => x.id === msel.d);
+    const pref = (dist && dist.mobs) ? pool.filter(t => dist.mobs.includes(t.name)) : [];
+    const type = (pref.length && Math.random() < 0.65)
+      ? pref[Math.floor(Math.random() * pref.length)]
+      : ((Math.random() < 0.45 && strong.length)
+        ? strong[Math.floor(Math.random() * strong.length)]
+        : (pool[Math.floor(Math.random() * pool.length)] || ENEMY_TYPES[0]));
     en.type = type;
     en.lv = clamp(lv + type.tier - 1, 1, 20);
     en.maxHp = type.hp + Math.floor((en.lv - 1) / 4);
@@ -454,10 +459,15 @@ export function createWorld(canvas, opts) {
     en.flashUntil = 0;
     en.alive = true;
     en.respawnAt = 0;
-    const p = landPoint(320, player.x, player.y);
+    const p = landPoint(440, player.x, player.y);
     en.x = p.x;
     en.y = p.y;
     en.vx = 0; en.vy = 0; en.timer = 0; en.frame = 0;
+    en.home = { x: en.x, y: en.y };
+    en.aggro = false;
+    en.windupUntil = 0;
+    en.nextAttack = 0;
+    en.alertUntil = 0;
   }
   for (let i = 0; i < 5; i++) { const en = { frame: 0 }; initEnemy(en); enemies.push(en); }
 
@@ -649,6 +659,12 @@ export function createWorld(canvas, opts) {
       ctx.fillStyle = 'rgba(255,255,255,0.45)';
       ctx.fillRect(x - en.type.h * 0.35, y - en.type.h, en.type.h * 0.7, en.type.h);
     }
+    if (t < en.alertUntil) {
+      ctx.fillStyle = '#ffe066';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', x, y - en.type.h - 26);
+    }
     ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(20,14,6,0.75)';
@@ -715,41 +731,64 @@ export function createWorld(canvas, opts) {
         continue;
       }
       const dist = Math.hypot(en.x - player.x, en.y - player.y);
+      const homeDist = en.home ? Math.hypot(en.home.x - en.x, en.home.y - en.y) : 0;
+      const aggroR = en.type.aggro || 190;
+      const spd = (en.type.speed || 0.1) * dt;
       en.timer -= dt;
-      if (dist < 190) {
-        const k = 0.1 * dt / (dist || 1);
-        en.vx = (player.x - en.x) * k;
-        en.vy = (player.y - en.y) * k;
+
+      if (dist < aggroR && homeDist < 520 && t > player.deathUntil) {
+        if (!en.aggro) en.alertUntil = t + 700;
+        en.aggro = true;
+        if (dist > 44) {
+          en.vx = (player.x - en.x) / (dist || 1) * spd;
+          en.vy = (player.y - en.y) / (dist || 1) * spd;
+          en.frame = 1;
+        } else {
+          en.vx = 0; en.vy = 0; en.frame = 0;
+        }
+        if (dist < 52 && t > en.nextAttack) {
+          en.windupUntil = t + 320;
+          en.attackUntil = t + 520;
+          en.nextAttack = t + 1500;
+        }
+      } else if (homeDist > 40) {
+        en.vx = (en.home.x - en.x) / (homeDist || 1) * spd * 0.7;
+        en.vy = (en.home.y - en.y) / (homeDist || 1) * spd * 0.7;
         en.frame = 1;
+        en.aggro = false;
       } else if (en.timer <= 0) {
-        en.timer = 1200 + Math.random() * 2200;
+        en.timer = 1600 + Math.random() * 2600;
         const a = Math.random() * 6.28;
-        en.vx = Math.cos(a) * 0.05 * dt;
-        en.vy = Math.sin(a) * 0.05 * dt;
+        en.vx = Math.cos(a) * 0.04 * dt;
+        en.vy = Math.sin(a) * 0.04 * dt;
+        en.frame = 0;
+        en.aggro = false;
+      } else {
         en.frame = 0;
       }
+
       const ex = clamp(en.x + en.vx, 40, WORLD_W - 40);
       const ey = clamp(en.y + en.vy, 80, WORLD_H - 40);
       if (isLand(ex, en.y)) en.x = ex;
       if (isLand(en.x, ey)) en.y = ey;
 
-      if (dist < 34 && t > invulnUntil && t > player.deathUntil) {
-        invulnUntil = t + 1300;
-        hurtUntil = t + 500;
-        en.attackUntil = t + 420;
-        player.hp = Math.max(0, player.hp - (en.damage || 2) * 8);
-        player.lastHurt = t;
-        onDamage && onDamage(en.damage || 2);
-        if (player.hp <= 0) {
-          player.deathUntil = t + 1500;
-          onDeath && onDeath();
+      if (en.windupUntil && t >= en.windupUntil) {
+        en.windupUntil = 0;
+        const d2 = Math.hypot(en.x - player.x, en.y - player.y);
+        if (d2 < 60 && t > invulnUntil) {
+          invulnUntil = t + 1200;
+          hurtUntil = t + 500;
+          player.hp = Math.max(0, player.hp - (en.damage || 2) * 8);
+          player.lastHurt = t;
+          onDamage && onDamage(en.damage || 2);
+          if (player.hp <= 0) {
+            player.deathUntil = t + 1500;
+            onDeath && onDeath();
+          }
         }
-        const push = dist || 1;
-        const kx = clamp(player.x + ((player.x - en.x) / push) * 46, 24, WORLD_W - 24);
-        const ky = clamp(player.y + ((player.y - en.y) / push) * 46, 60, WORLD_H - 30);
-        if (isLand(kx, player.y)) player.x = kx;
-        if (isLand(player.x, ky)) player.y = ky;
       }
+
+
     }
   }
 
@@ -798,8 +837,8 @@ export function createWorld(canvas, opts) {
     player.moving = !!(dx || dy);
     if (dx) player.dir = dx > 0 ? 1 : -1;
     if (t > player.deathUntil) {
-      const nx = clamp(player.x + dx * sp, 24, WORLD_W - 24);
-      const ny = clamp(player.y + dy * sp, 60, WORLD_H - 30);
+      const nx = clamp(player.x + dx * sp, 40, WORLD_W - 40);
+      const ny = clamp(player.y + dy * sp, 74, WORLD_H - 44);
       if (dx && isLand(nx, player.y)) player.x = nx;
       if (dy && isLand(player.x, ny)) player.y = ny;
     }
@@ -968,9 +1007,17 @@ export function createWorld(canvas, opts) {
       ctx.fillStyle = 'rgba(200,30,20,' + (0.32 * (hurtUntil - t) / 500).toFixed(2) + ')';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
-    ctx.fillStyle = 'rgba(74,53,32,0.55)';
-    ctx.fillRect(0, 0, VIEW_W, 3);
-    ctx.fillRect(0, VIEW_H - 3, VIEW_W, 3);
+    ctx.fillStyle = 'rgba(74,53,32,0.6)';
+    ctx.fillRect(0, 0, VIEW_W, 4);
+    ctx.fillRect(0, VIEW_H - 4, VIEW_W, 4);
+    ctx.fillRect(0, 0, 4, VIEW_H);
+    ctx.fillRect(VIEW_W - 4, 0, 4, VIEW_H);
+    const edge = 46;
+    const nearEdge = player.x < edge || player.x > WORLD_W - edge || player.y < edge + 40 || player.y > WORLD_H - edge;
+    if (nearEdge) {
+      ctx.fillStyle = 'rgba(255,224,102,0.10)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
 
     raf = requestAnimationFrame(draw);
   }
