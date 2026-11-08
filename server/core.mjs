@@ -352,7 +352,7 @@ export async function generateQuests({ goal, count } = {}) {
         ]
       })
     });
-    if (!r.ok) throw new Error('groq_' + r.status);
+    if (!r.ok) { const t = await r.text(); throw new Error('groq_' + r.status + ':' + t.slice(0, 140)); }
     const j = await r.json();
     const parsed = JSON.parse(j.choices[0].message.content);
     const list = Array.isArray(parsed.quests) ? parsed.quests : [];
